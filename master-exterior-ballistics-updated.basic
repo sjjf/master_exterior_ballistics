@@ -1,0 +1,229 @@
+10 home : vtab 3: htab 4: print "MASTER EXTERIOR BALLISTICS PROGRAM"
+20 normal
+30 print "**************************************"
+40 print "  Copyright (c) 1983 W. J. Jurens"
+50 print "         61 Fidler Avenue"
+60 print "    Winnipeg, Manitoba, Canada"
+70 print "            R3J 2R7"
+80 print "          Ph. 204-837-3125"
+90 print "**************************************"
+100 print ""
+110 print " Press any key to load the program": print
+120 get a$
+130 dim M(50): dim K(50): rem Dimension variables for M=Mach no. and K=Drag coefficient from graph of American KD8 function
+140 M(0) = .3: K(0) = 0.0825:M(1) = .5:K(1) = .0825:M(2) = .7:K(2) = 0.0825:M(3) = .8:K(3) = .0825:M(4) = .9:K(4) = .0825:M(5) = .95:K(5) = .094
+150 M(6) = 1:K(6) = .140:M(7) = 1.05:k(7) = .172:M(8) = 1.1:K(8) = .175:M(9) = 1.15:K(9) = .175:M(10) = 1.2:K(10) = .1725:M(11) = 1.25:K(11) = .1690
+160 M(12) = 1.30:K(12) = .166:M(13) = 1.35:K(13) = .1625:M(14) = 1.40:K(14) = .1605:M(15) = 1.45:K(15) = .157
+170 M(16) = 1.5:K(16) = .1535:M(17) = 1.55:K(17) = 1.51:M(18) = 1.6:K(18) = .149:M(19) = 1.65:K(19) = .146:M(20) = 1.7:K(20) = .143:M(21) = 1.75:K(21) = .14
+180 M(22) = 1.8:K(22) = .138:M(23) = 1.85:K(23) = .136:M(24) = 1.9:K(24) = .1335:M(25) = 1.95:K(25) = .132:M(26) = 2:K(26) = .129:M(27) = 2.05:K(27) = .127:M(28) = 2.10:K(28) = .125:M(29) = 2.15:K(29) = .123:M(30) = 2.2:K(30) = .121
+190 M(31) = 2.25:K(31) = .119:M(32) = 2.3:K(32) = .1175:M(33) = 2.35:K(33) = .116:M(34) = 2.4:K(34) = .1145:M(35) = 2.45:K(35) = .112:M(36) = 2.5:K(36) = .111:M(37) = 2.55:K(37) = 0.109:M(38) = 2.6:K(38) = 0.108
+200 M(39) = 2.65:K(39) = 0.106:M(40) = 2.7:K(40) = 0.105:M(41) = 2.75:K(41) = .104:M(42) = 2.8:K(42) = .103:M(43) = 3.25:K(43) = 0.09:M(44) = 3.8:K(44) = 0.08:M(45) = 4.15:K(45) = 0.075:M(46) = 4.40:K(46) = 0.0735
+210 print ""
+220 RD = 57.295779513: rem deg/rad conversion
+230 DF = 1.2250: rem density in kg/m^3
+240 Z4 = 1.34279408E - 18:Z3 = - 9.87941429E - 14:Z2 = 3.90848966E - 9:Z1 = - 9.69888125E - 5: rem Polynomial terms for ICAO std atmosphere
+250 input " Input Initial Velocity (m/sec) ";VS
+260 print
+270 input " Input Angle of Departure (deg) ";LD
+280 print
+290 input " Input Proj. Caliber (mm) ";DS
+300 D = DS/10: rem Cal must be in centimeters for further calcs
+310 print
+320 input " Input Proj. Mass (kg) ";M
+330 print
+340 input " Input Form Factor ";FF
+350 print
+360 input "Input Integration Interval (sec) ";II
+370 print
+380 input " Auto-set Intervals (y/n) ";IC$: print
+390 if IC$ = "Y" then input " Input error tolerance (m/sec) ";ET: print
+400 input " Input Air Density Factor ";AD
+410 print
+420 input " Input Altitude (meters) ";AS
+430 print
+440 print " Input Choice of Density Functions:"
+450 print "    U.S Pre-1945 Std= 1"
+460 print "    British Standard = 2"
+470 print "    I.C.A.O Standard = 3"
+480 input PW
+490 home: vtab 3: htab 4: print "Summary of Initial Conditions"
+500 normal : print
+510 print "  Initial Velocity   = ";VS;" meters/sec."
+520 print "  Angle of Departure = ";LD;" degrees"
+530 print "  Projectile Caliber = ";DS;" mm"
+540 print "  Projectile Weight  = ";M;" kg"
+550 print "  Form Factor        = ";FF
+560 print "  Air Density Factor = ";AD
+570 print "  Integration Interval = ";II;" sec"
+580 print "  Initial Altitude   = ";AS;" meters"
+590 print "  ";X$
+600 if FW = 1 then print "  U.S. Pre-1945 Density Function"
+610 if FW = 2 then print "  British Std Density Function"
+620 if FW = 3 then print "  I.C.A.O Density Function"
+630 print : print : print "Press 'G' to go"
+640 normal : print "(any other key will recycle)": print
+650 get PP$
+660 if PP$ < > "G" then home : goto 180
+665 A0 = AS
+666 I = II
+667 V0 = VS
+670 home : vtab 3: htab 4:print "tabular integration of trajectory": normal : print
+680 print "Time   Range   Height   Angle   Velocity   Vert    Horz"
+690 print "Sec.   Meters  Meters    Deg    M/Second   Vel     Vel"
+700 print int(10*TT + .1)/10 tab( 8) int (10 * RG + .5) / 10 tab( 16) int (10 * A0 + .5) / 10 tab( 24) int (1000 * (LD) + .5) / 1000 tab( 33) int (1000 * V0 + .5) / 1000
+710 rem :above line to print initial conditions
+720 L0 = LD / RD: rem convert degrees to radians for calcs
+730 rem ** begin numerical integration procedure **
+740 C = M / (FF * AD * D ^ 2): rem ballistic coefficient
+750 if TT = 0 then goto 830
+760 print int(10 * TT + .1)/10 tab( 8) int (10 * RG + .5) / 10 tab( 16) int (10 * A0 + .5) / 10 tab( 24) int (1000 * (L3 * RD) + .5) / 1000 tab( 33) int (1000 * V0 + .5) / 1000
+770 rem : above line to print typical conditions
+780 P3 = P2:P2 = P1:P1 = RG: rem range array
+790 Q3 = Q2:Q2 = Q1:Q1 = V0: rem velocity array
+800 S3 = S2:S2 = S1:S1 = L3: rem angle array
+810 T3 = T2:T2 = T1:T1 = TT: rem time array
+820 U3 = U2:U2 = U1:U1 = A0: rem altitude array
+830 if A0 < 0 then gosub 1840
+840 YE = YE + 1
+850 if YE = 5 then print :YE = 0
+860 rem :above lines to format printout
+870 Y = A0:rem set up for density
+880 G = 9.80665 - (.0000030665 * A0): rem accel of gravity
+890 CS = 344 - (.004 * A0): rem sound speed (m/sec)
+900 X0 = V0 * cos (L0): rem horz component
+910 Y0 = V0 * sin (L0): rem vert component
+920 rem :compute retardation
+930 KK = V0 / CS: rem mach no.
+940 for X = 1 to 50
+950  if KK = < M(X) then goto 970
+960  next X
+970 KD = (KK - M(X - 1)) / (M(X) - M(X - 1)) * (K(X) - K(X - 1)) + K(X - 1): rem linear interp. on drag function array
+980 R0 = KD * (DF / 10000) * V0 ^ 2: rem retardation in m/sec^2
+990 Y = A0: rem setup for density
+1000 if PW = 1 then gosub 1770
+1010 if PW = 2 then gosub 1790
+1020 if PW = 3 then gosub 1810
+1030 D0 = LL
+1040 E0 = R0 / (C / D0): rem actual retardation
+1050 H0 = E0 * cos (L0): rem 1st guess at horiz component of retardation
+1060 J0 = (E0 * sin (L0)) + G: rem 1st guess at vert component of retardation
+1070 X1 = X0 - (H0 * I): rem 1st pred of horiz vel
+1080 Y1 = Y0 - (J0 * I): rem 1st pred of vert vel
+1090 V1 = sqr(X1^2 + Y1^2)
+1100 L1 = atn(Y1 / X1): rem 1st pred of final angle
+1110 rem ** begin second prediciont **
+1120 M1 = (Y0 + Y1) / 2: rem estimate of mean vert velocity
+1130 A1 = (M1 * I): rem est. altitude at end of interval
+1140 Y = A1 + A0: rem set up to compute density for altitude
+1150 if PW = 1 then gosub 1770
+1160 if PW = 2 then gosub 1790
+1170 if PW = 3 then gosub 1810
+1180 D1 = LL
+1190 KK = V1 / CS: rem mach no.
+1200 for X = 1 to 50
+1210  if KK = < M(X) then goto 1230
+1220  next X
+1230 KD = (KK - M(X - 1)) / (M(X) - M(X - 1)) * (K(X) - K(X - 1)) + K(X - 1): rem linear interp on drag function array
+1240 R1 = KD * (DF / 10000) * V1^2: rem retardation in m/sec^2
+1250 E1 = R1 / (C / D1): rem actual retardation
+1260 H1 = E1 * cos(L1): rem 2nd guess at horiz ret. component
+1270 J1 = (E1 * sin(L1)) + G: rem 2nd guess at vert ret. component
+1280 H2 = (H0 + H1) / 2: rem 3rd est of horiz ret component
+1290 J2 = (J0 + J1) / 2: rem 3rd est of vert ret component
+1300 X2 = X0 - (H2 * I): rem 2nd pred of horiz vel
+1310 Y2 = Y0 - (J2 * I): rem 2nd pred of vert vel
+1320 V2 = sqr(X2^2 + Y2^2): rem 2nd pred of final velocity
+1330 L2 = atn(Y2 / X2): rem 2nd pred of final angle
+1340 rem ** begin third prediction **
+1350 M2 = (Y0 + Y2) /2:rem 2nd est of mean vert vel
+1360 A2 = M2 * I: rem est alt at end of interval
+1370 Y = A2 + A0: rem set up for density calc
+1380 if PW = 1 then gosub 1770
+1390 if PW = 2 then gosub 1790
+1400 if PW = 3 then gosub 1810
+1410 D2 = LL
+1420 KK = V2 / CS: rem mach no
+1430 for X = 1 to 50
+1440  if KK = < M(X) then goto 1460
+1450  next X
+1460 KD = (KK - M(X-1)) / (M(X) - M(X - 1)) * (K(X) - K(X - 1)) + K(X - 1):rem linear interp on drag function array
+1470 R2 = KD * (DF / 10000) * V2^2: rem retardation in m/sec^2
+1480 E2 = R2 / (C / D2): rem actual retardation
+1490 H3 = E2 * cos(L2): rem 4th guess at horiz ret component
+1500 J3 = (E2 * sin(L2)) + G: rem 4th guess at vert ret component
+1510 H4 = (H0 + H3) / 2: rem 5th est of horiz ret component
+1520 J4 = (J0 + J3) / 2: rem 5th est of vert ret component
+1530 X3 = X0 - (H4 * I): rem 3rd pred of horiz vel
+1540 Y3 = Y0 - (J4 * I): rem 3rd pred of vert vel
+1550 V3 = sqr(X3^2 + Y3^2): rem 3rd pred of final velocity
+1560 L3 = atn(Y3/X3): rem 3rd pred of final angle
+1570 M3 = (Y0 + Y3) / 2:rem 3rd est of mean vert vel0
+1580 M4 = (X0 + X3) / 2:rem 3rd est of mean horiz vel0
+1590 FH = M4 * I: rem final horiz posn
+1600 FV = M3 * I: rem final vert posn
+1610 LI = I: rem put interval in scratch variable *before* changin via auto set
+1620 rem :** end of 3rd prediction **
+1630 rem :do auto set of interval
+1640 if IC$ < > "Y" then goto 1680
+1650 if abs(V3 - V2) < .5 * ET then I = I * 1.2
+1660 if abs(V3 - V2) > .8 * ET then I = I * .8
+1670 if abs(V3 - V2) > ET then print "error tolerance exceeded": normal :I = I / 2: rem if error exceeded warn and reduce interval
+1680 rem :** setup to loop back **
+1690 if VE > ME then ME = VE: rem line to find largest vel error
+1700 VE = abs(V2 - V3): rem error in final velocity predictions
+1710 V0 = V3
+1720 L0 = L3
+1730 A0 = A0 + FV: rem final altitude
+1740 RG = RG + FH: rem sum total range
+1750 TT = int(1000*(TT + LI) + .5)/1000: rem sum integration intervals for total time and correct interpreter roundoff error
+1760 goto 740
+1770 LL = 10 ^ - (.000045 * Y)
+1780 return
+1790 LL = .1 ^ (.141 * (Y / 3048))
+1800 return
+1810 LL = Z4 * Y ^ 4 + Z3 * Y ^ 3 + Z2 * Y ^ 2 + Z1 * Y + 1
+1820 return
+1830 rem begin final interpolation routines
+1840 Y(1) = P3:Y(2) = P2:Y(3) = P1
+1850 X(1) = U3:X(2) = U2:X(3) = U1
+1860 gosub 2050
+1870 RL = B
+1880 Y(1) = Q3:Y(2) = Q2:Y(3) = Q1
+1890 gosub 2050
+1900 SL = B
+1910 Y(1) = S3:Y(2) = S2:Y(3) = S1
+1920 gosub 2050
+1930 AL = B
+1940 Y(1) = T3:Y(2) = T2:Y(3) = T1
+1950 gosub 2050
+1960 TL = B
+1970 print : print : htab 4: print "Interpolated terminal conditions": normal : print
+1980 print "Range = "; int(RL);" meters"
+1990 print "Height = 0 meters"
+2000 print "Velocity = "; int (10 * SL + .5) / 10;" meters/sec."
+2010 print "Angle of fall = "; int(10 * AL * RD + .5)/10;" degrees"
+2020 print "Time = "; int (TL * 100 + .5) / 100;" seconds"
+2030 print : htab 10: print "Finished with problem": goto 2170
+2040 rem begin 3 point routine
+2050 P = 3
+2060 B = 0
+2070 A = 0
+2080 for J = 1 to P
+2090  T = 1
+2100  for I = 1 to P
+2110   if I = J then 2130
+2120   T = T * (A - X(I)) / (X(J) - X(I))
+2130   next I
+2140  B = B + T * Y(J)
+2150  next J
+2160 return
+2170 print "Re-run with new Form Factor? (old FF ";FF;") (y/n)"
+2180 input TR$
+2190 if TR$ = "Y" then input " Input new Form Factor ";FF: print: goto 2210
+2200 end
+2210 I = II
+2220 A0 = AS
+2230 TT = 0
+2240 V0 = 0
+2250 RG = 0
+2260 goto 500
