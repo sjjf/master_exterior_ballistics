@@ -15,6 +15,8 @@
 
 import argparse
 import math
+from os import path
+import sys
 
 # constants
 
@@ -110,116 +112,35 @@ def step(alt, v, l, C):
     FV = MY3 * I
     return (FH, FV, V3, L3)
 
-kd_KD8 = [
-    0.0825,
-    0.0825,
-    0.0825,
-    0.0825,
-    0.0825,
-    0.094,
-    0.14,
-    0.172,
-    0.175,
-    0.175,
-    0.1725,
-    0.169,
-    0.166,
-    0.1625,
-    0.1605,
-    0.157,
-    0.1535,
-    0.151,
-    0.149,
-    0.146,
-    0.143,
-    0.14,
-    0.138,
-    0.136,
-    0.1335,
-    0.132,
-    0.129,
-    0.127,
-    0.125,
-    0.123,
-    0.121,
-    0.119,
-    0.1175,
-    0.116,
-    0.1145,
-    0.112,
-    0.111,
-    0.109,
-    0.108,
-    0.106,
-    0.105,
-    0.104,
-    0.103,
-    0.09,
-    0.08,
-    0.075,
-    0.0735,
-]
+mach = []
+kd = []
 
-mach_KD8 = [
-    0.3,
-    0.5,
-    0.7,
-    0.8,
-    0.9,
-    0.95,
-    1.0,
-    1.05,
-    1.1,
-    1.15,
-    1.2,
-    1.25,
-    1.3,
-    1.35,
-    1.4,
-    1.45,
-    1.5,
-    1.55,
-    1.6,
-    1.65,
-    1.7,
-    1.75,
-    1.8,
-    1.85,
-    1.9,
-    1.95,
-    2.0,
-    2.05,
-    2.1,
-    2.15,
-    2.2,
-    2.25,
-    2.3,
-    2.35,
-    2.4,
-    2.45,
-    2.5,
-    2.55,
-    2.6,
-    2.65,
-    2.7,
-    2.75,
-    2.8,
-    3.25,
-    3.8,
-    4.15,
-    4.4,
-]
+def load_drag_function(df_filename):
+    try:
+        with open(df_filename) as df:
+            mach = []
+            kd = []
+            for line in df.readlines():
+                line = line.strip()
+                if line != "":
+                    (m, k) = line.split(',', 2)
+                    mach.append(float(m))
+                    kd.append(float(k))
+            return (mach, kd)
+    except IOError as e:
+        print "Loading drag function failed:", e
+        sys.exit(1)
 
 def get_KD(v, alt):
-    mach = v/(CS - (0.004*alt))
-    for i in range(1, len(mach_KD8)):
-        if mach < mach_KD8[i]:
+    m = v/(CS - (0.004*alt))
+    for i in range(1, len(mach)):
+        if m < mach[i]:
             break
-    m1 = mach_KD8[i-1]
-    m2 = mach_KD8[i]
-    k1 = kd_KD8[i-1]
-    k2 = kd_KD8[i]
-    return ((mach - m1)/(m2 - m1))*(k2 - k1) + k1
+    m1 = mach[i-1]
+    m2 = mach[i]
+    k1 = kd[i-1]
+    k2 = kd[i]
+    return ((m - m1)/(m2 - m1))*(k2 - k1) + k1
 
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
@@ -247,11 +168,25 @@ def parse_args():
                             'ICAO std'
                         ),
                         default="US")
+    parser.add_argument('--drag-function', action='store', required=False,
+                        help="Drag function to use", default="KD8")
+    parser.add_argument('--drag-function-file', action='store', required=False,
+                        help="File to read drag function data from")
+    parser.add_argument('-t', '--print-trajectory', action='store_true',
+                        required=False, default=False,
+                        help="Print projectile trajectory")
     return parser.parse_args()
 
 def main() :
     args = parse_args()
-    print args
+
+    global mach
+    global kd
+    if "drag_function_file" in args:
+        (mach, kd) = load_drag_function(args.drag_function_file)
+    else:
+        dff = path.join("drag_functions", "%s.conf" % (args.drag_function))
+        (mach, kd) = load_drag_function(dff)
 
     set_atmosphere(args)
     C = ballistic_coefficient(args)
@@ -263,13 +198,24 @@ def main() :
         I = float(args.timestep)
     rg = 0.0
     tt = 0.0
-    print C, alt, l, mv, I, rg, tt
+    print "Initial conditions:"
+    print "Projectile Caliber: %.2fmm" % (float(args.caliber))
+    print "Projectile drag function: %s" % (args.drag_function)
+    print "Projectile mass: %.2fkg" % (float(args.mass))
+    print "Initial Velocity: %.2fm/s" % (mv)
+    print "Departure Angle: %.2fdeg" % (math.degrees(l))
+    print "Form Factor: %f" % (float(args.form_factor))
+    print "Air Density Factor: %f" % (float(args.air_density_factor))
+    print "Calculated Ballistic Coefficient: %f" % (C)
+    print ""
 
-    print "Time Range Height Angle Vel"
-    print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
+    if args.print_trajectory:
+        print "Time Range Height Angle Vel"
+        print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
     while alt >= 0.0:
         (FH, FV, V, L) = step(alt, mv, l, C)
-        print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
+        if args.print_trajectory:
+            print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
         rg += FH
         alt += FV
         mv = V
