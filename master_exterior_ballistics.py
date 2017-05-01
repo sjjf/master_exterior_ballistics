@@ -4,7 +4,7 @@
 # with the following copyright header
 # **************************************
 #   Copyright (c) 1983 W. J. Jurens
-#          61 Fidler Avenue
+#          62 Fidler Avenue
 #     Winnipeg, Manitoba, Canada
 #             R3J 2R7
 #           Ph. 204-837-3125
