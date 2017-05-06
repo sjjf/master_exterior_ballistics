@@ -61,12 +61,14 @@ def set_atmosphere(args):
         return
     print "No atmosphere model specified?"
 
-def ballistic_coefficient(args):
-    m = float(args.mass)
-    FF = float(args.form_factor)
-    AD = float(args.air_density_factor)
+# this doesn't fit with the definition from the paper, but the number we
+# get from the code is less than 1 - I'm guessing it's just a question of
+# units (the calculation in the paper would result in units of kg/mm^2,
+# whereas this gvies us kg/cm^2). Presumably there's a scaling factor hidden
+# somewhere else that makes it all work, because it does seem to work . . .
+def ballistic_coefficient(m, FF, AD, d):
     # note that this needs to be in cm rather than mm
-    d = float(args.caliber)/10.0
+    d = d/10.0
     return m/(FF*AD*d**2)
 
 # little bit cheaty, but eh
@@ -112,6 +114,156 @@ def step(alt, v, l, C):
     FV = MY3 * I
     return (FH, FV, V3, L3)
 
+def one_shot(alt, mv, l, C, args):
+    tt = 0.0
+    rg = 0.0
+    tt1 = 0.0
+    rg1 = 0.0
+    mv1 = 0.0
+    l1 = 0.0
+    alt1 = 0.0
+    if args.print_trajectory:
+        print "Time Range Height Angle Vel"
+        print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
+    while alt >= 0.0:
+        (FH, FV, V, L) = step(alt, mv, l, C)
+        if args.print_trajectory:
+            print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
+        rg1 = rg
+        tt1 = tt
+        mv1 = mv
+        l1 = l
+        alt1 = alt
+        rg += FH
+        alt += FV
+        mv = V
+        l = L
+        tt += I
+    tt = interpolate(0, alt, alt1, tt, tt1)
+    rg = interpolate(0, alt, alt1, rg, rg1)
+    mv = interpolate(0, alt, alt1, mv, mv1)
+    l = interpolate(0, alt, alt1, l, l1)
+    return (tt, rg, mv, l)
+
+def interpolate(a, x1, x2, y1, y2):
+    # a is a value between x1 and x2 - interpolate a value between y1 and y2
+    return y1 + ((y2 - y1)*((a - x1)/x2 - x1))
+
+def common_setup(args):
+    C = ballistic_coefficient(
+            args.mass,
+            args.form_factor,
+            args.air_density_factor,
+            args.caliber)
+    alt = args.altitude
+    l = math.radians(args.departure_angle)
+    mv = args.mv
+    if "timestep" in args:
+        global I
+        I = args.timestep
+    return (alt, l, mv, C)
+
+def single_run(args):
+    (alt, l, mv, C) = common_setup(args)
+    print "Initial conditions:"
+    print "Projectile Caliber: %.1fmm" % (args.caliber)
+    if args.drag_function_file:
+        print "Projectile drag function from file %s" % (args.drag_function_file)
+    else:
+        print "Projectile drag function: %s" % (args.drag_function)
+    print "Projectile mass: %.3fkg" % (args.mass)
+    print "Initial Velocity: %.3fm/s" % (mv)
+    print "Departure Angle: %.4fdeg" % (math.degrees(l))
+    print "Form Factor: %.6f" % (args.form_factor)
+    print "Air Density Factor: %.6f" % (args.air_density_factor)
+    print "Calculated Ballistic Coefficient: %fkg/cm^2" % (C)
+    print ""
+
+    (tt, rg, iv, l) = one_shot(alt, mv, l, C, args)
+    print "Final conditions:"
+    print "Time of flight: %.2fs" %(tt)
+    print "Range: %.2fm" % (rg)
+    print "Impact Angle: %.4fdeg" % (math.degrees(l))
+    print "Impact Velocity: %.2fm/s" % (iv)
+
+def match_range(args):
+    (alt, l, mv, C) = common_setup(args)
+    target_range = args.target_range
+    tolerance = args.range_tolerance
+    low = 0.0
+    high = math.radians(90.0)
+    mid = l
+    (tt, rg, iv, il) = one_shot(alt, mv, mid, C, args)
+    count = 0
+    print math.degrees(mid), target_range, rg
+    while abs(target_range - rg) > tolerance:
+        if rg > target_range:
+            print "high",
+            high = mid
+        elif rg < target_range:
+            print "low",
+            low = mid
+        mid = (high + low)/2
+        (tt, rg, iv, il) = one_shot(alt, mv, mid, C, args)
+        print math.degrees(mid), "%e" % (high-low), target_range, rg
+        count += 1
+        if count >= 100:
+            if abs(high - low) < 0.0001:
+                break
+            else:
+                print "Iteration limit exceeded calculating range and angle not converged"
+                sys.exit(1)
+    print "Range %.1f matched at the following conditions:" % (target_range)
+    print "Range: %.1f" % (rg)
+    print "Initial Velocity: %.4fm/s" % (mv)
+    print "Departure Angle: %.4fdeg" % (math.degrees(mid))
+    print "Time of flight: %.2fs" % (tt)
+    print "Impact Angle: %.4fdeg" % (math.degrees(il))
+    print "Impact Velocity: %.2fm/s" % (iv)
+
+def match_form_factor(args):
+    (alt, l, mv, _) = common_setup(args)
+    target_range = args.target_range
+    tolerance = args.range_tolerance
+    low = 0.0
+    # this is crazy high, but it'll only add a couple of extra steps while
+    # making sure we're not accidentally outside the actual range
+    high = 10.0
+    # not actually the middle, of course . . .
+    mid = 1.0
+    C = ballistic_coefficient(
+            args.mass,
+            mid,
+            args.air_density_factor,
+            args.caliber)
+    (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
+    count = 0
+    while abs(target_range - rg) > tolerance:
+        # Note: if the form factor is smaller, the projectile will go further
+        # hence we invert the normal ordering tests
+        if rg < target_range:
+            high = mid
+        elif rg > target_range:
+            low = mid
+        mid = (high + low)/2
+        C = ballistic_coefficient(
+                args.mass,
+                mid,
+                args.air_density_factor,
+                args.caliber)
+        (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
+        count += 1
+        if count >= 100:
+            print "Iteration limit exceeded calculating form factor"
+            sys.exit(1)
+    print "Form Factor found for projectile at the following conditions:"
+    print "Target Range: %.2fm" % (target_range)
+    if args.drag_function_file:
+        print "Drag Function from file %s" % (args.drag_function_file)
+    else:
+        print "Drag Function: %s" % (args.drag_function)
+    print "Form Factor: %.6f" % (mid)
+
 mach = []
 kd = []
 
@@ -142,39 +294,94 @@ def get_KD(v, alt):
     k2 = kd[i]
     return ((m - m1)/(m2 - m1))*(k2 - k1) + k1
 
-def parse_args():
-    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+def add_common_args(parser):
     parser.add_argument('-v', '--mv', action='store', required=True,
-                        help='Initial velocity')
+                        type=float, help='Initial velocity')
     parser.add_argument('-m', '--mass', action='store', required=True,
-                        help='Projectile mass')
+                        type=float, help='Projectile mass')
     parser.add_argument('-c', '--caliber', action='store', required=True,
-                        help='Projectile caliber')
-    parser.add_argument('-f', '--form-factor', action='store', required=True,
-                        help='Projectile form factor')
+                        type=float, help='Projectile caliber')
     parser.add_argument('-a', '--altitude', action='store', required=False,
-                        help='Initial altitude (default 0)', default="0.0")
-    parser.add_argument('-l', '--departure_angle', action='store', required=True,
-                        help="Angle of elevation")
+                        type=float,
+                        help='Initial altitude (default 0)',
+                        default="0.0")
     parser.add_argument('-I', '--timestep', action='store', required=False,
-                        help="Simulation timestep", default="0.1")
+                        type=float, help="Simulation timestep", default="0.1")
     parser.add_argument('--air-density-factor', action='store', required=False,
+                        type=float,
                         help='Air density adjustment factor (default 1.0)',
                         default="1.0")
-    parser.add_argument('--density-function', action='store', required=True,
+    parser.add_argument('--density-function', action='store', required=False,
                         choices=['US', 'UK', 'ICAO'],
                         help=(
                             'Density Function: US Pre-1945 std, British std,'
-                            'ICAO std'
+                            'ICAO std (default US)'
                         ),
                         default="US")
     parser.add_argument('--drag-function', action='store', required=False,
-                        help="Drag function to use", default="KD8")
+                        help="Drag function to use (default KD8)", default="KD8")
     parser.add_argument('--drag-function-file', action='store', required=False,
                         help="File to read drag function data from")
-    parser.add_argument('-t', '--print-trajectory', action='store_true',
-                        required=False, default=False,
-                        help="Print projectile trajectory")
+
+def add_match_args(parser):
+    parser.add_argument('--target-range', action='store', required=True,
+                        type=float, help='Target range')
+    parser.add_argument('--range-tolerance', action='store', required=False,
+                        type=float, default=1.0,
+                        help='Range tolerance')
+
+def parse_args():
+#    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    subparsers = parser.add_subparsers(title="Modes of operation",
+                                       description="<mode> -h/--help for mode help")
+    parser_single = subparsers.add_parser('single', help="Single shot mode")
+    parser_single.add_argument('-l', '--departure-angle', action='store',
+                               required=True,
+                               type=float,
+                               help="Departure Angle")
+    parser_single.add_argument('-t', '--print-trajectory', action='store_true',
+                               required=False, default=False,
+                               help="Print projectile trajectory")
+    parser_single.add_argument('-f', '--form-factor', action='store', required=True,
+                               type=float, help='Projectile form factor')
+    add_common_args(parser_single)
+    parser_single.set_defaults(func=single_run)
+    parser_mr = subparsers.add_parser('match-range',
+                                      help=(
+                                          "Find the departure angle to achieve"
+                                          " the specified target range"
+                                      ))
+    parser_mr.add_argument('-l', '--departure-angle', action='store',
+                           required=False,
+                           type=float,
+                           default=45.0,
+                           help="Initial value for departure angle")
+
+    parser_mr.add_argument('-f', '--form-factor', action='store', required=True,
+                           type=float, help='Projectile form factor')
+
+    add_match_args(parser_mr)
+    add_common_args(parser_mr)
+    parser_mr.set_defaults(func=match_range, print_trajectory=False)
+    parser_ff = subparsers.add_parser('find-ff',
+                                      help=(
+                                          "Find the form factor to achieve the"
+                                          " specified target range"
+                                      ))
+    parser_ff.add_argument('-l', '--departure-angle', action='store',
+                                  required=True,
+                                  type=float,
+                                  help="Departure Angle")
+    parser_ff.add_argument('-f', '--form-factor', action='store',
+                           required=False,
+                           type=float,
+                           help='Projectile form factor',
+                           default=1.0)
+
+    add_match_args(parser_ff)
+    add_common_args(parser_ff)
+    parser_ff.set_defaults(func=match_form_factor, print_trajectory=False)
     return parser.parse_args()
 
 def main() :
@@ -182,50 +389,14 @@ def main() :
 
     global mach
     global kd
-    if "drag_function_file" in args:
+    if args.drag_function_file:
         (mach, kd) = load_drag_function(args.drag_function_file)
     else:
         dff = path.join("drag_functions", "%s.conf" % (args.drag_function))
         (mach, kd) = load_drag_function(dff)
 
     set_atmosphere(args)
-    C = ballistic_coefficient(args)
-    alt = float(args.altitude)
-    l = math.radians(float(args.departure_angle))
-    mv = float(args.mv)
-    if "timestep" in args:
-        global I
-        I = float(args.timestep)
-    rg = 0.0
-    tt = 0.0
-    print "Initial conditions:"
-    print "Projectile Caliber: %.2fmm" % (float(args.caliber))
-    print "Projectile drag function: %s" % (args.drag_function)
-    print "Projectile mass: %.2fkg" % (float(args.mass))
-    print "Initial Velocity: %.2fm/s" % (mv)
-    print "Departure Angle: %.2fdeg" % (math.degrees(l))
-    print "Form Factor: %f" % (float(args.form_factor))
-    print "Air Density Factor: %f" % (float(args.air_density_factor))
-    print "Calculated Ballistic Coefficient: %f" % (C)
-    print ""
-
-    if args.print_trajectory:
-        print "Time Range Height Angle Vel"
-        print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
-    while alt >= 0.0:
-        (FH, FV, V, L) = step(alt, mv, l, C)
-        if args.print_trajectory:
-            print round(tt, 2), round(rg, 2), round(alt, 2), round(math.degrees(l), 2), round(mv, 2)
-        rg += FH
-        alt += FV
-        mv = V
-        l = L
-        tt += I
-    print "Final conditions:"
-    print "Time of flight: %f" %(tt)
-    print "Range: %f" % (rg)
-    print "Impact Angle: %f" % (math.degrees(l))
-    print "Impact Velocity: %f" % (mv)
+    args.func(args)
 
 if __name__ == '__main__':
     main()
