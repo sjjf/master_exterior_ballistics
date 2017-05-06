@@ -186,26 +186,23 @@ def single_run(args):
     print "Impact Angle: %.4fdeg" % (math.degrees(l))
     print "Impact Velocity: %.2fm/s" % (iv)
 
-def match_range(args):
-    (alt, l, mv, C) = common_setup(args)
-    target_range = args.target_range
-    tolerance = args.range_tolerance
-    low = 0.0
+# split out so that we can reuse this to calculate range tables
+#
+# Note: this will converge on a departure angle of 90 degrees if the projectile
+# can't actually achieve the target range.
+def _match_range(target_range, tolerance, alt, mv, C, args):
+    low = math.radians(0.1)
     high = math.radians(90.0)
-    mid = l
+    mid = (high + low)/2.0
     (tt, rg, iv, il) = one_shot(alt, mv, mid, C, args)
     count = 0
-    print math.degrees(mid), target_range, rg
     while abs(target_range - rg) > tolerance:
         if rg > target_range:
-            print "high",
             high = mid
         elif rg < target_range:
-            print "low",
             low = mid
-        mid = (high + low)/2
+        mid = (high + low)/2.0
         (tt, rg, iv, il) = one_shot(alt, mv, mid, C, args)
-        print math.degrees(mid), "%e" % (high-low), target_range, rg
         count += 1
         if count >= 100:
             if abs(high - low) < 0.0001:
@@ -213,10 +210,28 @@ def match_range(args):
             else:
                 print "Iteration limit exceeded calculating range and angle not converged"
                 sys.exit(1)
-    print "Range %.1f matched at the following conditions:" % (target_range)
-    print "Range: %.1f" % (rg)
+    if mid == math.radians(90.0) and abs(rg) < 0.01:
+        raise ValueError("Could not converge")
+    return (tt, rg, iv, il, mid)
+
+def match_range(args):
+    (alt, _, mv, C) = common_setup(args)
+    target_range = args.target_range
+    tolerance = args.range_tolerance
+    try:
+        (tt, rg, iv, il, l) = _match_range(target_range,
+                                           tolerance,
+                                           alt,
+                                           mv,
+                                           C,
+                                           args)
+    except ValueError:
+        print "Could not converge on range %.1fm" % (target_range)
+        sys.exit(0)
+    print "Range %.1fm matched at the following conditions:" % (target_range)
+    print "Range: %.1fm" % (rg)
     print "Initial Velocity: %.4fm/s" % (mv)
-    print "Departure Angle: %.4fdeg" % (math.degrees(mid))
+    print "Departure Angle: %.4fdeg" % (math.degrees(l))
     print "Time of flight: %.2fs" % (tt)
     print "Impact Angle: %.4fdeg" % (math.degrees(il))
     print "Impact Velocity: %.2fm/s" % (iv)
@@ -263,6 +278,41 @@ def match_form_factor(args):
     else:
         print "Drag Function: %s" % (args.drag_function)
     print "Form Factor: %.6f" % (mid)
+
+def range_table(args):
+    (alt, _, mv, C) = common_setup(args)
+    increment = args.increment
+    start = args.start
+    end = args.end
+    print "Range Table"
+    print "Projectile mass: %.3fkg" % (args.mass)
+    print "Initial velocity: %.4fm/s" % (mv)
+    print "Range increments: %.1fm" % (increment)
+    print ""
+    print " Range Departure Angle of Time of Striking"
+    print "        Angle      Fall   Flight    Vel."
+    print "-------------------------------------------"
+    target_range = start
+    tolerance = 1.0
+    while True:
+        try:
+            (tt, rg, iv, il, l) = _match_range(target_range,
+                                               tolerance,
+                                               alt,
+                                               mv,
+                                               C,
+                                               args)
+            print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
+                    rg,
+                    math.degrees(l),
+                    math.degrees(il),
+                    tt,
+                    iv
+                )
+            target_range += increment
+        except ValueError as e:
+            # range is too great - break out
+            break
 
 mach = []
 kd = []
@@ -382,6 +432,31 @@ def parse_args():
     add_match_args(parser_ff)
     add_common_args(parser_ff)
     parser_ff.set_defaults(func=match_form_factor, print_trajectory=False)
+    parser_rt = subparsers.add_parser('range-table',
+                                      help="Calculate a range table")
+    parser_rt.add_argument('-f', '--form-factor', action='store',
+                           required=True,
+                           type=float,
+                           help='Projectile form factor')
+    parser_rt.add_argument('--increment', action='store',
+                           required=False,
+                           type=float,
+                           default=100.0,
+                           help='Range steps for range table')
+    parser_rt.add_argument('--start', action='store',
+                           required=False,
+                           type=float,
+                           default=100.0,
+                           help='Starting range')
+    parser_rt.add_argument('--end', action='store',
+                           required=False,
+                           type=float,
+                           default=100000.0,
+                           help='End range')
+    add_common_args(parser_rt)
+    parser_rt.set_defaults(func=range_table,
+                           print_trajectory=False,
+                           departure_angle=45.0)
     return parser.parse_args()
 
 def main() :
