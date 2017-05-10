@@ -10,13 +10,31 @@ This may make the method used a little opaque to more aerodynamically minded
 users, but the underlying concepts are closely related and can be easily
 translated (though the details are beyond the scope of this document).
 
+# WARNING
+
+Though some effort has been made to ensure that this code is well behaved and
+correctly models real world ballistics, this code has no warranty and is not
+distributed as fit for any purpose. The results should should be confirmed by
+other methods before being used for anything other than casual purposes.
+
+# Licensing
+
+The original BASIC code is distributed with the following notice:
+
+The program given in this paper can be freely reproduced if used in strictly
+non-commercial applications.
+
+The Python reimplementation is distributed under the terms of the GNU General
+Public License, Version 3 or later.
+
 # Basic Theory of Operation
 
 At its core this code calculates the trajectory of a projectile by applying
-the basic equations of motion combined with a drag model to the initial
-conditions to calculate the position after a single timestep, and then
-iterating that process until the projectile moves below altitude 0 (i.e. hits
-the ground).
+the basic equations of motion to the initial conditions to calculate the
+position after a single timestep, and then iterating that process until the
+projectile moves below altitude 0 (i.e. hits the ground). The basic model is
+modified by a drag model which applies a resistive force to the projectile
+throughout it's trajectory.
 
 At the core of the drag model is the ballistic coefficient C, which is
 determined by the mass and caliber of the projectile, and the drag function,
@@ -37,18 +55,30 @@ The form factor is specified as a single floating point number, using the
 --form-factor command line option.
 
 Drag functions in this program are presented as a CSV formated table of mach
-numbers to drag coefficient values. Historical drag functions are available in
-the drag_functions directory, and can be selected using the --drag-function
-option. Additional drag function tables can be added manually to this
-directory, or a drag function file can be specified directly on the command
-line using the --drag-function-file option.
+numbers mapped to drag coefficient values. Historical drag functions are
+available in the drag_functions directory, and can be selected using the
+--drag-function option. Additional drag function tables can be added manually
+to this directory, or a drag function file can be specified directly on the
+command line using the --drag-function-file option.
+
+The model performance may also be modified using the --air-density-factor
+option, which applies a scaling factor to the ballistic coefficient to account
+for changes in air density.
 
 # Modes of Use
 
 This program can be used in a number of ways: to model a single "firing" of a
 projectile; to estimate the form factor required to replicate the performance
-of a known projectile with a given drag function; and to replicate a standard
-range table given a form factor and drag function.
+of a known projectile with a given drag function; to calculate the maximum
+range of a given projectile configuration; and to calculate range tables.
+
+In all these modes the projectile configuration is specified by the mass,
+caliber, drag function and form factor. A single "shot" will also specify the
+departure angle and initial velocity; an attempt to match a range will specify
+the initial velocity and allow the departure angle to vary until shots achieve
+the targeted range; and an attempt to find the form factor will specify the
+initial velocity, departure angle, and the expected range for the shot, and
+then vary the form factor until the shot matches the specified range.
 
 ## Single Run
 
@@ -56,19 +86,25 @@ The simplest use case is to fire a single projectile and track its trajectory.
 In this mode the projectile caliber, mass, form factor and drag function are
 required, along with the initial velocity and departure angle. The output is
 the time of flight and range at which the projectile fell below the zero
-altitude mark, the impact velocity and impact angle.
+altitude mark, the impact velocity and impact angle, with the option to print
+out the trajectory in detail.
 
 ## Form Factor Derivation
 
-In order to derive the form factor required to match a particular known
-projectile's performance the initial velocity, angle of departure, and range
-must be specified. The program then performs multiple runs varying only the
-form factor, doing a simple binary search to find the form factor that
-produces a sufficiently close match to the specified range.
+In order to derive the form factor required to match a particular projectile's
+performance a known set of initial velocity, angle of departure, and range must
+be specified. The program then performs multiple runs varying only the form
+factor until a shot matching the specified conditions is achieved.
+
+## Maximum Range Calculation
+
+In this mode the program will perform multiple runs to search for the departure
+angle which results in the maximum range for particular projectile configuration
+, displaying the range and departure angle found.
 
 ## Range Table Calculation
 
-In this mode the program will calculate a range table for a projectile at a
-given initial velocity, form factor and drag function, plotting increments of
-the target range against the departure angle, impact velocity and impact
-angle.
+The program supports creating two varieties of range table, one calculated for
+increments of departure angle, and one calculated for increments of range -
+this method emulates historical range tables. The start and end values can be
+specified, as well as the increments.
