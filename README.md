@@ -54,7 +54,9 @@ used to derive the drag function, a form factor is used to scale the chosen
 drag function to match the performance of the real projectile.
 
 The form factor is specified as a single floating point number, using the
-`--form-factor` command line option.
+`--form-factor` command line option. Since it acts to scale the retarding force
+experienced by the projectile, a larger form factor results in more drag, and a
+shorter range.
 
 Drag functions in this program are presented as a CSV formatted table of mach
 numbers mapped to drag coefficient values. Historical drag functions are
