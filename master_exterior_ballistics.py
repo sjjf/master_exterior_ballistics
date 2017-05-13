@@ -10,7 +10,7 @@
 #           Ph. 204-837-3125
 # **************************************
 #
-# Reimplimentation in Python copyright Simon Fowler <sjjfowler@gmail.com>,
+# Reimplementation in Python copyright Simon Fowler <sjjfowler@gmail.com>,
 # April-May 2017.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -77,7 +77,7 @@ def set_atmosphere(args):
 # this doesn't fit with the definition from the paper, but the number we
 # get from the code is less than 1 - I'm guessing it's just a question of
 # units (the calculation in the paper would result in units of kg/mm^2,
-# whereas this gvies us kg/cm^2). Presumably there's a scaling factor hidden
+# whereas this gives us kg/cm^2). Presumably there's a scaling factor hidden
 # somewhere else that makes it all work, because it does seem to work . . .
 def ballistic_coefficient(m, FF, AD, d):
     # note that this needs to be in cm rather than mm
@@ -289,7 +289,7 @@ def _match_range(target_range,
     mid = high
     rg = 1.0e30
     count = 0
-    while abs(target_range - rg) > tolerance:
+    while abs(target_range - rg) > tolerance/2:
         if rg > target_range:
             high = mid
         elif rg < target_range:
@@ -322,7 +322,7 @@ def match_range(args):
     target_range = args.target_range
     (rg_max, da_max) = _max_range(alt, mv, C, args)
     if target_range > rg_max + 1:
-        print "Target range is utside maximum range (%fm)" % (rg_max)
+        print "Target range is outside maximum range (%fm)" % (rg_max)
         sys.exit(0)
     tolerance = args.tolerance
     try:
@@ -363,7 +363,7 @@ def match_form_factor(args):
             args.caliber)
     (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
     count = 0
-    while abs(target_range - rg) > tolerance:
+    while abs(target_range - rg) > tolerance/2:
         # Note: if the form factor is smaller, the projectile will go further
         # hence we invert the normal ordering tests
         if rg < target_range:

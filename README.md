@@ -21,8 +21,10 @@ other methods before being used for anything other than casual purposes.
 
 The original BASIC code is distributed with the following notice:
 
+```
 The program given in this paper can be freely reproduced if used in strictly
 non-commercial applications.
+```
 
 The Python reimplementation is distributed under the terms of the GNU General
 Public License, Version 3 or later.
@@ -52,16 +54,16 @@ used to derive the drag function, a form factor is used to scale the chosen
 drag function to match the performance of the real projectile.
 
 The form factor is specified as a single floating point number, using the
---form-factor command line option.
+`--form-factor` command line option.
 
-Drag functions in this program are presented as a CSV formated table of mach
+Drag functions in this program are presented as a CSV formatted table of mach
 numbers mapped to drag coefficient values. Historical drag functions are
-available in the drag_functions directory, and can be selected using the
---drag-function option. Additional drag function tables can be added manually
+available in the `drag_functions` directory, and can be selected using the
+`--drag-function` option. Additional drag function tables can be added manually
 to this directory, or a drag function file can be specified directly on the
-command line using the --drag-function-file option.
+command line using the `--drag-function-file` option.
 
-The model performance may also be modified using the --air-density-factor
+The model performance may also be modified using the `--air-density-factor`
 option, which applies a scaling factor to the ballistic coefficient to account
 for changes in air density.
 
@@ -108,3 +110,29 @@ The program supports creating two varieties of range table, one calculated for
 increments of departure angle, and one calculated for increments of range -
 this method emulates historical range tables. The start and end values can be
 specified, as well as the increments.
+
+# Limitations
+
+The program is intended to emulate the methods used historically to calculate
+range tables, and hence does *not* implement more sophisticated methods that
+would be applied in modern exterior ballistics code. Projectile motion is
+modeled as a set of linear steps; drag coefficients are derived from tabular
+data using linear interpolation; the atmospheric models supplied are simplistic
+in the extreme both in terms of density at altitude and determining the speed of
+sound. While these reflect the methods used historically they also constrain the
+accuracy of the results, both in absolute terms and in terms of matching
+historical data. Minor differences in the digitisation of calculations that
+were originally done by hand, as well as differences in the digitisation of the
+input data, lead to small but significant differences between the historical
+results and the results of the program. A good match will have variations from
+known data of less than 1% in most cases, but a closer match than that should
+not be expected.
+
+# Further Documentation
+
+Some documented examples are available in the [examples](/examples) directory,
+in particular the [range table recreation
+example](/examples/16in_modeling_run.md). The program also prints usage
+information when run with the `-h` or `--help` options, both for the main
+program and for each of the commands.
+
