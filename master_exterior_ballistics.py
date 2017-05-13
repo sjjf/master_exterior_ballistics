@@ -28,6 +28,7 @@
 
 import argparse
 import math
+from os import listdir
 from os import path
 import sys
 
@@ -488,6 +489,14 @@ def get_KD(v, alt):
     t = ((m - m1)/(m2 - m1))*(k2 - k1) + k1
     return t
 
+def get_drag_functions():
+    try:
+        dfs = listdir('drag_functions')
+        dfs = [path.basename(path.splitext(t)[0]) for t in dfs]
+        dfs.sort()
+        return dfs
+    except OSError as e:
+        print "Failed to open drag function directory: %s" % (e)
 
 def add_common_args(parser):
     parser.add_argument('-v', '--mv',
@@ -535,6 +544,7 @@ def add_common_args(parser):
     parser.add_argument('--drag-function',
         action='store',
         required=False,
+        choices=get_drag_functions(),
         help="Drag function to use (default KD8)",
         default="KD8")
     parser.add_argument('--drag-function-file',
