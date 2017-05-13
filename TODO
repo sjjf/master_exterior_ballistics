@@ -1,0 +1,14 @@
+2017-05-13
+----------
+
+Soon:
+
+* Imperial to metric conversions, both on input and output
+* Projectile configuration from a file rather than requiring command line
+  options all the time
+* Additional drag functions
+
+Future:
+
+* Rocket assisted projectile support
+* More flexibility in atmospheric modeling
