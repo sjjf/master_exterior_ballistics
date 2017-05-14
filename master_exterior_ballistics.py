@@ -48,9 +48,9 @@ CS = 344.0
 
 # ICAO atmospheric model constants
 Z4 = 1.34279408e-18
-Z3 = 9.87941429e-14
+Z3 = -9.87941429e-14
 Z2 = 3.90848966e-9
-Z1 = 9.69888125e-5
+Z1 = -9.69888125e-5
 
 def atmosphere_icao(alt):
     return Z4 * alt**4 + Z3 * alt**3 + Z2 * alt**2 + Z1 * alt + 1
