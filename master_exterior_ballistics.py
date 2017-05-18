@@ -347,48 +347,61 @@ def match_range(args):
     print " Impact Angle: %.4fdeg" % (math.degrees(il))
     print " Impact Velocity: %.2fm/s" % (iv)
 
+# the form factor is close to linearly related to the range for a given
+# departure angle, so we can use a very focused search scheme
 def match_form_factor(args):
     (alt, l, mv, C) = common_setup(args)
     target_range = args.target_range
     tolerance = args.tolerance
-    low = 0.0
-    # this is crazy high, but it'll only add a couple of extra steps while
-    # making sure we're not accidentally outside the actual range
-    high = 10.0
-    # not actually the middle, of course . . .
-    mid = 1.0
+    # we start by bracketing the target range
+    ff1 = 1.0
     C = ballistic_coefficient(
             args.mass,
-            mid,
+            ff1,
             args.air_density_factor,
             args.caliber)
-    (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
-    count = 0
-    while abs(target_range - rg) > tolerance/2:
-        # Note: if the form factor is smaller, the projectile will go further
-        # hence we invert the normal ordering tests
-        if rg < target_range:
-            high = mid
-        elif rg > target_range:
-            low = mid
-        mid = (high + low)/2
+    (_, rg1, _, _) = one_shot(alt, mv, l, C, args)
+    while rg1 > target_range:
+        ff1 += 0.05
         C = ballistic_coefficient(
-                args.mass,
-                mid,
-                args.air_density_factor,
-                args.caliber)
-        (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
-        count += 1
-        if count >= 100:
-            print "Iteration limit exceeded calculating form factor"
-            sys.exit(1)
+            args.mass,
+            ff1,
+            args.air_density_factor,
+            args.caliber)
+        (_, rg1, _, _) = one_shot(alt, mv, l, C, args)
+    ff2 = ff1 - 0.05
+    C = ballistic_coefficient(
+            args.mass,
+            ff2,
+            args.air_density_factor,
+            args.caliber)
+    (_, rg2, _, _) = one_shot(alt, mv, l, C, args)
+    while rg2 < target_range:
+        ff2 -= 0.05
+        C = ballistic_coefficient(
+            args.mass,
+            ff2,
+            args.air_density_factor,
+            args.caliber)
+        (_, rg2, _, _) = one_shot(alt, mv, l, C, args)
+    # then we interpolate between the two ranges, the target range, and the two
+    # form factors
+    fft = interpolate(target_range, rg1, rg2, ff1, ff2)
+    # and then verify that it's within tolerance
+    C = ballistic_coefficient(
+        args.mass,
+        fft,
+        args.air_density_factor,
+        args.caliber)
+    (_, rgt, _, _) = one_shot(alt, mv, l, C, args)
+
     print_projectile_configuration(args)
     print ""
-    print "Form Factor: %.6f" % (mid)
+    print "Form Factor: %.6f" % (fft)
     print ""
     print "Form Factor found for projectile at the following conditions:"
     print "Target Range %.2fm matched at:" % (target_range)
-    print " Range: %.2fm" % (rg)
+    print " Range: %.2fm" % (rgt)
     print " Departure Angle: %.4fdeg" % (math.degrees(l))
 
 def range_table(args):
