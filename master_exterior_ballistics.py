@@ -354,54 +354,31 @@ def match_form_factor(args):
     target_range = args.target_range
     tolerance = args.tolerance
     # we start by bracketing the target range
-    ff1 = 1.0
+    ff = 1.0
     C = ballistic_coefficient(
             args.mass,
-            ff1,
+            ff,
             args.air_density_factor,
             args.caliber)
-    (_, rg1, _, _) = one_shot(alt, mv, l, C, args)
-    while rg1 > target_range:
-        ff1 += 0.05
+    (_, rg, _, _) = one_shot(alt, mv, l, C, args)
+    count = 0
+    while abs(target_range - rg) > tolerance/2.0:
+        ff = ff * (rg/target_range)
         C = ballistic_coefficient(
             args.mass,
-            ff1,
+            ff,
             args.air_density_factor,
             args.caliber)
-        (_, rg1, _, _) = one_shot(alt, mv, l, C, args)
-    ff2 = ff1 - 0.05
-    C = ballistic_coefficient(
-            args.mass,
-            ff2,
-            args.air_density_factor,
-            args.caliber)
-    (_, rg2, _, _) = one_shot(alt, mv, l, C, args)
-    while rg2 < target_range:
-        ff2 -= 0.05
-        C = ballistic_coefficient(
-            args.mass,
-            ff2,
-            args.air_density_factor,
-            args.caliber)
-        (_, rg2, _, _) = one_shot(alt, mv, l, C, args)
-    # then we interpolate between the two ranges, the target range, and the two
-    # form factors
-    fft = interpolate(target_range, rg1, rg2, ff1, ff2)
-    # and then verify that it's within tolerance
-    C = ballistic_coefficient(
-        args.mass,
-        fft,
-        args.air_density_factor,
-        args.caliber)
-    (_, rgt, _, _) = one_shot(alt, mv, l, C, args)
-
+        (_, rg, _, _) = one_shot(alt, mv, l, C, args)
+        count += 1
     print_projectile_configuration(args)
+    print "Converged after %d iterations" % (count)
     print ""
-    print "Form Factor: %.6f" % (fft)
+    print "Form Factor: %.6f" % (ff)
     print ""
     print "Form Factor found for projectile at the following conditions:"
     print "Target Range %.2fm matched at:" % (target_range)
-    print " Range: %.2fm" % (rgt)
+    print " Range: %.2fm" % (rg)
     print " Departure Angle: %.4fdeg" % (math.degrees(l))
 
 def range_table(args):
