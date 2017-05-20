@@ -73,8 +73,9 @@ for changes in air density.
 
 This program can be used in a number of ways: to model a single "firing" of a
 projectile; to estimate the form factor required to replicate the performance
-of a known projectile with a given drag function; to calculate the maximum
-range of a given projectile configuration; and to calculate range tables.
+of a known projectile with a given drag function under specified conditions; to
+calculate the maximum range of a given projectile configuration; and to
+calculate range tables.
 
 In all these modes the projectile configuration is specified by the mass,
 caliber, drag function and form factor. A single "shot" will also specify the
@@ -96,15 +97,21 @@ out the trajectory in detail.
 ## Form Factor Derivation
 
 In order to derive the form factor required to match a particular projectile's
-performance a known set of initial velocity, angle of departure, and range must
-be specified. The program then performs multiple runs varying only the form
-factor until a shot matching the specified conditions is achieved.
+performance for a known set of initial conditions a target range and angle of
+departure must be specified. The program then performs multiple runs varying
+only the form factor until a shot matching the specified conditions is achieved.
+
+Note that the form factor is not consistent across all possible initial
+conditions, since it attempts to encapsulate a range of physical properties not
+all of which are constant for all mach numbers. In most cases the form factor
+will need to be matched for multiple target ranges in order to achieve results
+consistent with historical data.
 
 ## Maximum Range Calculation
 
 In this mode the program will perform multiple runs to search for the departure
-angle which results in the maximum range for particular projectile configuration
-, displaying the range and departure angle found.
+angle which results in the maximum range for a particular projectile
+configuration, displaying the range and departure angle found.
 
 ## Range Table Calculation
 
@@ -113,7 +120,7 @@ increments of departure angle, and one calculated for increments of range -
 this method emulates historical range tables. The start and end values can be
 specified, as well as the increments.
 
-# Limitations
+# Limitations and Caveats
 
 The program is intended to emulate the methods used historically to calculate
 range tables, and hence does *not* implement more sophisticated methods that
@@ -121,14 +128,26 @@ would be applied in modern exterior ballistics code. Projectile motion is
 modeled as a set of linear steps; drag coefficients are derived from tabular
 data using linear interpolation; the atmospheric models supplied are simplistic
 in the extreme both in terms of density at altitude and determining the speed of
-sound. While these reflect the methods used historically they also constrain the
-accuracy of the results, both in absolute terms and in terms of matching
-historical data. Minor differences in the digitisation of calculations that
-were originally done by hand, as well as differences in the digitisation of the
-input data, lead to small but significant differences between the historical
-results and the results of the program. A good match will have variations from
-known data of less than 1% in most cases, but a closer match than that should
-not be expected.
+sound. In addition, the use of the program cannot automate away all the manual
+work done historically during the compilation of range tables - to achieve good
+results the user needs to have a solid understanding of the constraints and
+limitations of the methodology the program is implementing.
+
+While the intent is to reflect the methods used historically this also
+constrains the accuracy of the results, both in absolute terms and in terms of
+matching historical data. The available data at this point is vastly more
+limited than that available to the historical engineers compiling the original
+range tables and gun performance data, meaning that attempting to apply the same
+methodology will inevitably require assumptions, estimates and approximations
+for any missing data. In addition, minor differences in the digitisation of
+calculations that were originally done by hand, as well as differences in the
+digitisation of the input data, lead to small but significant differences
+between the historical results and the results of the program.
+
+A good result will have variations from known data of less than 1% in most
+cases, but a closer match than that should not be expected. Where insufficient
+information is available the results will represent at best a reasonable
+estimate, and the results should be reported with appropriate care.
 
 # Further Documentation
 
