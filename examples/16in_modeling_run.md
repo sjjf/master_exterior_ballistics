@@ -45,9 +45,9 @@ factor in order to be able to replicate this range table.
 
 The drag function can be chosen based on some knowledge of the age and type of
 the projectile - in this case, a pre-1935 US design. The closest easy match
-would be the KD8 drag function, though the KD1 drag function may also be
+would be the KD6 drag function, though the KD1 drag function may also be
 appropriate depending on the age of the design in 1935. We'll start with the
-KD8 function and see what results we get.
+KD6 function and see what results we get.
 
 The form factor can only be determined by comparing test shots with the
 historical data, but the best option when starting is to specify the form
@@ -65,9 +65,8 @@ usage: master_exterior_ballistics.py single [-h] -l DEPARTURE_ANGLE [-t] -f
                                             [-I TIMESTEP]
                                             [--air-density-factor AIR_DENSITY_FACTOR]
                                             [--density-function {US,UK,ICAO}]
-                                            [--drag-function DRAG_FUNCTION]
-                                            [--drag-function-file
-DRAG_FUNCTION_FILE]
+                                            [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                                            [--drag-function-file DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -90,7 +89,7 @@ optional arguments:
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
-  --drag-function DRAG_FUNCTION
+  --drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
@@ -100,7 +99,7 @@ Putting the values we determined above onto the command line gives this:
 
 ```
 $ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
-        -l 45.2483 -f 1.0 --drag-function KD8
+        -l 45.2483 -f 1.0 --drag-function KD6
 ```
 
 This produces the following output:
@@ -110,47 +109,46 @@ Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 1.0000
- Drag function: KD8
+ Drag function: KD6
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
  Air Density Factor: 1.000000
 
 Final conditions:
-Time of flight: 96.58s
-Range: 37575.33m
-Impact Angle: -56.1381deg
-Impact Velocity: 477.11m/s
+Time of flight: 95.14s
+Range: 36149.81m
+Impact Angle: -56.6591deg
+Impact Velocity: 465.34m/s
 ```
 
-This resulted in a shot that went significantly further than the desired
-range, indicating that the modelled drag was significantly too low. This can
-be adjusted by increasing the form factor, for example to 1.1:
+This resulted in a shot that went slightly short of the target range, indicating
+that the modelled drag was slightly too high. This can be adjusted by decreasing
+the form factor, for example to 0.9.
 
 ```
 $ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
-    -l 45.2483 -f 1.1 --drag-function KD8
+    -l 45.2483 -f 1.1 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.1000
- Drag function: KD8
+ Form Factor: 0.9000
+ Drag function: KD6
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
  Air Density Factor: 1.000000
 
 Final conditions:
-Time of flight: 95.10s
-Range: 35829.68m
-Impact Angle: -57.1354deg
-Impact Velocity: 458.43m/s
+Time of flight: 96.77s
+Range: 38032.45m
+Impact Angle: -55.6598deg
+Impact Velocity: 485.19m/s
 ```
 
-This time the range is somewhat short of the target, indicating that the new
-form factor is too high - the correct form factor will be somewhere in
-between.
+This time the range is significantly beyond the target, indicating that the form
+factor is too low - the correct form factor will be somewhere in between.
 
 # Finding the Form Factor
 
@@ -165,10 +163,13 @@ usage: master_exterior_ballistics.py find-ff [-h] -l DEPARTURE_ANGLE
                                              [--tolerance TOLERANCE] -v MV -m
                                              MASS -c CALIBER [-a ALTITUDE]
                                              [-I TIMESTEP]
-                                             [--air-density-factor AIR_DENSITY_FACTOR]
+                                             [--air-density-factor
+AIR_DENSITY_FACTOR]
                                              [--density-function {US,UK,ICAO}]
-                                             [--drag-function DRAG_FUNCTION]
-                                             [--drag-function-file DRAG_FUNCTION_FILE]
+                                             [--drag-function
+{1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                                             [--drag-function-file
+DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -193,7 +194,7 @@ optional arguments:
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
-  --drag-function DRAG_FUNCTION
+  --drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
@@ -208,60 +209,69 @@ departure angle of 45.2483 degrees:
 
 ```
 $ ./master_exterior_ballistics.py find-ff -m 952.544 -c 406.4 -v 792.48 \
-         --drag-function KD8 --target-range 36210 -l 45.2483
+         --drag-function KD6 --target-range 36210 -l 45.2483
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 1.0000
- Drag function: KD8
+ Drag function: KD6
+Converged after 7 iterations
 
-Form Factor: 1.077591
+Form Factor: 0.996695
 
 Form Factor found for projectile at the following conditions:
 Target Range 36210.00m matched at:
- Range: 36210.06m
+ Range: 36209.52m
  Departure Angle: 45.2483deg
-
 ```
 
-The program has found the required form factor to match the shot - 1.077591. As
-expected this is between 1.0 and 1.1, the bracketing values we found manually.
+The program has found the required form factor to match the shot - 0.996695. As
+expected this is between 1.0 and 0.9, the bracketing values we found manually.
 
 To verify that this is correct we can re-run the single shot mode that we tried
 before, using the new value for the form factor:
 
 ```
 $ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48
-        -l 45.2483 -f 1.077591 --drag-function KD8
+        -l 45.2483 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.0776
- Drag function: KD8
+ Form Factor: 0.9967
+ Drag function: KD6
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
  Air Density Factor: 1.000000
 
 Final conditions:
-Time of flight: 95.43s
-Range: 36210.06m
-Impact Angle: -56.9131deg
-Impact Velocity: 462.53m/s
+Time of flight: 95.19s
+Range: 36209.51m
+Impact Angle: -56.6269deg
+Impact Velocity: 465.96m/s
 ```
 
-As expected, the calculated range is 36210m; the impact angle is 56.9 degrees,
-compared with 55.9 degrees in the original data; the time of flight is 95.4s
-compared with 94.6; and the impact velocity is 462.5m/s compared with 475.2m/s.
+As expected, the calculated range is 36210m; the impact angle is 56.6 degrees,
+compared with 55.9 degrees in the original data; the time of flight is 95.2s
+compared with 94.6; and the impact velocity is 465.96m/s compared with 475.2m/s.
 These variations are on the order of one or two percent, which is reasonable
 given that the original terminal data was mostly derived rather than direct
 measurements.
 
-To verify that the calculated form factor is a good match we can use other data
-from the table. The first row, converted to metric, has the following
-information:
+It's important to understand that the form factor isn't consistent across the
+full range of available departure angles - it's a simple linear scaling factor
+applied to the drag function, and hence cannot capture variations in performance
+that aren't linearly related to the drag function. This means that in order to
+match an existing range table it will be necessary to use a range of different
+form factors.
+
+To get an idea about how closely the chosen drag model matches the performance
+of the projectile we can use data from other parts of the range table to
+calculate alternative form factors.
+
+Taking the first row in our sample, converted to metric:
 
 ```
 33832.8 35.4617 47.8 77.7 448.0
@@ -271,106 +281,62 @@ Modeling this shot gives us:
 
 ```
 $ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
-        -l 35.4617 -f 1.077591 --drag-function KD8
+        -l 35.4617 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.0776
- Drag function: KD8
+ Form Factor: 0.9967
+ Drag function: KD6
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 35.4617deg
  Air Density Factor: 1.000000
 
 Final conditions:
-Time of flight: 78.47s
-Range: 33865.42m
-Impact Angle: -48.8472deg
-Impact Velocity: 431.21m/s
+Time of flight: 78.24s
+Range: 33834.29m
+Impact Angle: -48.5307deg
+Impact Velocity: 435.86m/s
+
 ```
 
-Again these numbers are close, though not a perfect match. We can go back and
-run the find-ff command again with this shot as the target data - this can give
-us an idea for how closely the chosen drag function matches the original data:
+These numbers are very close, though not a perfect match in all details - in
+particular, the range is only a couple of meters off the target. This indicates
+that for these two shots the KD6 drag model is a close match for the real
+performance. We can go back and run the find-ff command again with this shot as
+the target data to quantify this match:
 
 ```
 $ ./master_exterior_ballistics.py find-ff -m 952.544 -c 406.4 -v 792.48 \
-		 --drag-function KD8 --target-range 33832.8 -l 35.4617
+		 --drag-function KD6 --target-range 33832.8 -l 35.4617
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 1.0000
- Drag function: KD8
+ Drag function: KD6
+Converged after 8 iterations
 
-Form Factor: 1.079720
+Form Factor: 0.996803
 
 Form Factor found for projectile at the following conditions:
 Target Range 33832.80m matched at:
- Range: 33832.60m
+ Range: 33832.53m
  Departure Angle: 35.4617deg
-```
-
-The resulting form factor differs by 0.002, or about 2 parts in 1000, suggesting
-the match is reasonably solid. To finally verify that, running the previous
-single shot with the new form factor will give us an idea of the variation in
-results between the two values:
 
 ```
-$ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
-        -l 45.2483 -f 1.079720 --drag-function KD8
 
-Projectile Configuration:
- Mass: 952.544kg
- Caliber: 406.400mm
- Form Factor: 1.0797
- Drag function: KD8
-Initial Conditions:
- Velocity: 792.480m/s
- Departure Angle: 45.2483deg
- Air Density Factor: 1.000000
+The resulting form factor differs by 0.0001, or about 1 parts in 10000,
+confirming that the match is excellent.
 
-Final conditions:
-Time of flight: 95.40s
-Range: 36173.66m
-Impact Angle: -56.9342deg
-Impact Velocity: 462.14m/s
-```
-The original data for this shot was:
-
-```
-36,210 45.2483 55.9 94.6 475.2 
-```
-
-The data calculated using the first form factor estimate was:
-
-```
-36,210 45.2483 56.9 95.4 462.5
-```
-
-and the data calculated using the second form factor estimate was:
-
-```
-36,174 45.2483 56.9 95.4 462.1
-```
-
-Between the two form factors the variation is minimal, though the small
-variations in terminal conditions between the two modeling runs and the original
-data may indicate some inconsistencies between the chosen drag function and the
-drag function used to derive the historical data. However, the variations are
-all on the order of 1%, which suggests that this is a decent match for the
-original range table.
-
-In theory the same process could be done to match all rows in the original
-table, and the resulting form factors could be averaged to get the best possible
-match, but the trivial differences between the two values tested here suggest
-that would gain us little additional accuracy. In this case we'll just average
-the two values we now have to get 1.0786555.
+This result is a little unusual, but it makes it easy for us to recreate the
+snippet of the range table that we're working with - we can use the same form
+factor across the whole of the range table without any issues.
 
 # Recreating the Range Table
 
-Now that we have a reasonably good form factor we can attempt to recreate the
+Now that we have a form factor and drag model, we can attempt to recreate the
 original range table. The data we have starts at a range of 37000 yards and
 continues to 39600 yards, and increments by 100 yards - converting this to
 metric gives a range from 33832.8m to 36210m in 91.44m increments. The range
@@ -384,10 +350,14 @@ usage: master_exterior_ballistics.py range-table [-h] -f FORM_FACTOR
                                                  [--start START] [--end END]
                                                  -v MV -m MASS -c CALIBER
                                                  [-a ALTITUDE] [-I TIMESTEP]
-                                                 [--air-density-factor AIR_DENSITY_FACTOR]
-                                                 [--density-function {US,UK,ICAO}]
-                                                 [--drag-function DRAG_FUNCTION]
-                                                 [--drag-function-file DRAG_FUNCTION_FILE]
+                                                 [--air-density-factor
+AIR_DENSITY_FACTOR]
+                                                 [--density-function
+{US,UK,ICAO}]
+                                                 [--drag-function
+{1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                                                 [--drag-function-file
+DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -410,7 +380,7 @@ optional arguments:
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
-  --drag-function DRAG_FUNCTION
+  --drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
@@ -421,15 +391,15 @@ increment:
 
 ```
 $ ./master_exterior_ballistics.py range-table -m 952.544 -c 406.4 -v 792.48 \
-        -f 1.0786555 --drag-function KD8 --start 33832.8 --end 36210 \
+        -f 0.996695 --drag-function KD6 --start 33832.8 --end 36210 \
          --increment 91.44
 
 Range Table
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.0787
- Drag function: KD8
+ Form Factor: 0.9967
+ Drag function: KD6
 Initial velocity: 792.4800m/s
 Air Density Factor: 1.0000
 Range increments: 91.4m
@@ -437,33 +407,33 @@ Range increments: 91.4m
  Range Departure Angle of Time of Striking
         Angle      Fall   Flight    Vel.
 -------------------------------------------
- 33833  35.4194 -48.8192  78.38   430.90
- 33924  35.6588 -49.0430  78.82   431.58
- 34016  35.9039 -49.2706  79.27   432.29
- 34107  36.1519 -49.4990  79.72   433.01
- 34199  36.4057 -49.7310  80.18   433.75
- 34290  36.6624 -49.9639  80.64   434.51
- 34381  36.9248 -50.2001  81.11   435.30
- 34473  37.1959 -50.4423  81.60   436.11
- 34564  37.4699 -50.6850  82.09   436.94
- 34656  37.7525 -50.9334  82.60   437.81
- 34747  38.0409 -51.1849  83.11   438.70
- 34838  38.3350 -51.4393  83.63   439.61
- 34930  38.6407 -51.7015  84.18   440.57
- 35022  38.9580 -51.9712  84.74   441.57
- 35113  39.2810 -52.2435  85.30   442.59
- 35204  39.6184 -52.5253  85.89   443.68
- 35296  39.9702 -52.8166  86.51   444.82
- 35388  40.3365 -53.1170  87.15   446.01
- 35478  40.7172 -53.4264  87.80   447.26
- 35570  41.1238 -53.7538  88.50   448.60
- 35662  41.5535 -54.0964  89.24   450.03
- 35753  42.0149 -54.4606  90.03   451.56
- 35845  42.5167 -54.8527  90.88   453.24
- 35936  43.0704 -55.2805  91.81   455.10
- 36028  43.7049 -55.7650  92.87   457.23
- 36119  44.4605 -56.3354  94.12   459.75
- 36210  45.4929 -57.1049  95.81   463.13
+ 33833  35.4584 -48.5276  78.23   435.85
+ 33924  35.6955 -48.7487  78.67   436.51
+ 34015  35.9383 -48.9735  79.11   437.20
+ 34107  36.1869 -49.2020  79.56   437.91
+ 34199  36.4385 -49.4316  80.01   438.64
+ 34290  36.6929 -49.6620  80.47   439.38
+ 34382  36.9560 -49.8986  80.95   440.14
+ 34473  37.2220 -50.1359  81.42   440.93
+ 34564  37.4937 -50.3767  81.91   441.74
+ 34656  37.7742 -50.6232  82.41   442.57
+ 34747  38.0604 -50.8729  82.92   443.43
+ 34839  38.3553 -51.1282  83.44   444.32
+ 34930  38.6560 -51.3866  83.98   445.23
+ 35021  38.9682 -51.6527  84.53   446.18
+ 35113  39.2920 -51.9265  85.10   447.18
+ 35205  39.6245 -52.2053  85.68   448.20
+ 35295  39.9685 -52.4914  86.28   449.26
+ 35388  40.3328 -52.7918  86.91   450.39
+ 35479  40.7087 -53.0991  87.56   451.56
+ 35570  41.1076 -53.4224  88.25   452.81
+ 35662  41.5297 -53.7613  88.98   454.14
+ 35753  41.9807 -54.1201  89.74   455.56
+ 35845  42.4722 -54.5073  90.58   457.11
+ 35936  43.0100 -54.9266  91.49   458.81
+ 36028  43.6171 -55.3947  92.50   460.74
+ 36119  44.3341 -55.9407  93.69   463.04
+ 36210  45.2593 -56.6350  95.21   466.00
 ```
 
 Converting the output to imperial units for a direct comparison is an exercise
@@ -471,16 +441,9 @@ left to the reader, but a quick eyeballing of the easily comparable numbers
 suggest that the departure angles found for each range are close but not perfect
 matches, and the terminal conditions are within a percent of the original data.
 
-Having verified that we have a workable model we can now generate a range table
-covering any portion of the gun range that we're interested in, or experiment
-with any of the other variables that can be introduced (variations in
-atmospheric density, variations in initial velocity, variations in projectile
-mass, and so on).
-
-# Conclusion
-
-This document outlines one use case (possibly the most important) for the master
-exterior ballistics program - that of recreating a historical range table. It
-demonstrates the core functionality and some of the limitations of the program,
-but does not attempt to provide complete coverage. Other information can be
-found in the README file, and in the help information.
+In a case like this where the form factor was so consistent across a range of
+departure angles it may be worth creating a full range table using this form
+factor, but without having access to a wider range of data any extensions beyond
+the table produced above would be of questionable validity. However, within the
+range of data that we have any simulated shots should be a solid match for
+reality.
