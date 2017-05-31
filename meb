@@ -32,6 +32,9 @@ from os import listdir
 from os import path
 import sys
 
+# globals - used in lieu of objectification (for now)
+print_traj = False
+
 # constants
 
 # surface air density (kg/m^3)
@@ -128,7 +131,24 @@ def step(alt, v, l, C):
     FV = MY3 * I
     return (FH, FV, V3, L3)
 
-def one_shot(alt, mv, l, C, args):
+def print_trajectory(trajectory):
+    print "Time Range Height Angle Vel"
+    if len(trajectory) < 1:
+        return
+    (ta, ttt, tr, tv, tl) = trajectory[0]
+    del trajectory[0]
+    count = 1
+    print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
+    for (ta, ttt, tr, tv, tl) in trajectory:
+        print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
+        if count == 5:
+            count = 0
+            print ""
+        count += 1
+    print ""
+
+
+def one_shot(alt, mv, l, C):
     tt = 0.0
     rg = 0.0
     trajectory = []
@@ -150,19 +170,9 @@ def one_shot(alt, mv, l, C, args):
     rg = interpolate(0, alt, alt1, rg, rg1)
     mv = interpolate(0, alt, alt1, mv, mv1)
     l = interpolate(0, alt, alt1, l, l1)
-    if args.print_trajectory:
-        print "Time Range Height Angle Vel"
-        (ta, ttt, tr, tv, tl) = trajectory[0]
-        del trajectory[0]
-        count = 1
-        print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
-        for (ta, ttt, tr, tv, tl) in trajectory:
-            print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
-            if count == 5:
-                count = 0
-                print ""
-            count += 1
-        print ""
+    global print_traj
+    if print_traj:
+        print_trajectory(trajectory)
     return (tt, rg, mv, l)
 
 def interpolate(a, x1, x2, y1, y2):
@@ -206,7 +216,7 @@ def single_run(args):
     print_initial_conditions(args)
     print ""
 
-    (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
+    (tt, rg, iv, il) = one_shot(alt, mv, l, C)
     print "Final conditions:"
     print "Time of flight: %.2fs" % (tt)
     print "Range: %.2fm" % (rg)
@@ -238,17 +248,17 @@ def _max_range(alt, mv, C, args):
     mid = (low + high)/2.0
     l = (mid + low)/2.0
     h = (mid + high)/2.0
-    (_, rg_low, _, _) = one_shot(alt, mv, l, C, args)
-    (_, rg_high, _, _) = one_shot(alt, mv, h, C, args)
+    (_, rg_low, _, _) = one_shot(alt, mv, l, C)
+    (_, rg_high, _, _) = one_shot(alt, mv, h, C)
     while abs(high - low) > tolerance:
         if rg_low < rg_high:
             low = l
             l = (mid + low)/2.0
-            (_, rg_low, _, _) = one_shot(alt, mv, l, C, args)
+            (_, rg_low, _, _) = one_shot(alt, mv, l, C)
         else:
             high = h
             h = (mid + high)/2.0
-            (_, rg_high, _, _) = one_shot(alt, mv, h, C, args)
+            (_, rg_high, _, _) = one_shot(alt, mv, h, C)
         if rg_low > rg_max:
             rg_max = rg_low
             da_max = l
@@ -298,7 +308,7 @@ def _match_range(target_range,
         l1 = mid
         mid = (high + low)/2.0
         rg1 = rg
-        (tt, rg, iv, il) = one_shot(alt, mv, mid, C, args)
+        (tt, rg, iv, il) = one_shot(alt, mv, mid, C)
         if rg < rg1 and l1 < mid:
             # we're shooting higher and not going as far - we're on the far
             # end of the curve. At this point we need to ...
@@ -360,7 +370,7 @@ def match_form_factor(args):
             ff,
             args.air_density_factor,
             args.caliber)
-    (_, rg, _, _) = one_shot(alt, mv, l, C, args)
+    (_, rg, _, _) = one_shot(alt, mv, l, C)
     count = 0
     while abs(target_range - rg) > tolerance/2.0:
         ff = ff * (rg/target_range)
@@ -369,7 +379,7 @@ def match_form_factor(args):
             ff,
             args.air_density_factor,
             args.caliber)
-        (_, rg, _, _) = one_shot(alt, mv, l, C, args)
+        (_, rg, _, _) = one_shot(alt, mv, l, C)
         count += 1
     print_projectile_configuration(args)
     print "Converged after %d iterations" % (count)
@@ -692,6 +702,10 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    if args.print_trajectory:
+        global print_traj
+        print_traj = True
 
     global mach
     global kd
