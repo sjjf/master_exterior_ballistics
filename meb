@@ -187,7 +187,9 @@ def common_setup(args):
             args.air_density_factor,
             args.caliber)
     alt = args.altitude
-    l = math.radians(args.departure_angle)
+    l = 0.0
+    if args.departure_angle:
+        l = math.radians(args.departure_angle)
     mv = args.mv
     if "timestep" in args:
         global I
@@ -357,39 +359,58 @@ def match_range(args):
     print " Impact Angle: %.4fdeg" % (math.degrees(il))
     print " Impact Velocity: %.2fm/s" % (iv)
 
+def _match_form_factor(alt, mass, mv, adf, cal, l, tr, tol):
+    ff = 1.0
+    C = ballistic_coefficient(
+            mass,
+            ff,
+            adf,
+            cal)
+    (_, rg, _, _) = one_shot(alt, mv, l, C)
+    count = 0
+    while abs(tr - rg) > tol/2.0:
+        ff = ff * (rg/tr)
+        C = ballistic_coefficient(
+            mass,
+            ff,
+            adf,
+            cal)
+        (_, rg, _, _) = one_shot(alt, mv, l, C)
+        count += 1
+    return (ff, l, rg, count)
+
 # the form factor is close to linearly related to the range for a given
 # departure angle, so we can use a very focused search scheme
 def match_form_factor(args):
     (alt, l, mv, C) = common_setup(args)
+    mass = args.mass
+    adf = args.air_density_factor
+    cal = args.caliber
     target_range = args.target_range
     tolerance = args.tolerance
-    # we start by bracketing the target range
-    ff = 1.0
-    C = ballistic_coefficient(
-            args.mass,
-            ff,
-            args.air_density_factor,
-            args.caliber)
-    (_, rg, _, _) = one_shot(alt, mv, l, C)
-    count = 0
-    while abs(target_range - rg) > tolerance/2.0:
-        ff = ff * (rg/target_range)
-        C = ballistic_coefficient(
-            args.mass,
-            ff,
-            args.air_density_factor,
-            args.caliber)
-        (_, rg, _, _) = one_shot(alt, mv, l, C)
-        count += 1
+    shots = []
+    if args.shot:
+        for shot in args.shot:
+            (da, tr) = shot.split(',')
+            da = math.radians(float(da))
+            tr = float(tr)
+            (ff, l, rg, count) = _match_form_factor(alt, mass, mv,
+                                                 adf, cal, da,
+                                                 tr, tolerance)
+            shots.append((ff, l, rg, count))
+    else:
+        (ff, l, rg, count) = _match_form_factor(alt, args.mass, mv,
+                                     args.air_density_factor,
+                                     args.caliber,
+                                     l, target_range, tolerance)
+        shots.append((ff, l, rg, count))
+        print "Converged after %d iterations" % (count)
     print_projectile_configuration(args)
-    print "Converged after %d iterations" % (count)
     print ""
-    print "Form Factor: %.6f" % (ff)
-    print ""
-    print "Form Factor found for projectile at the following conditions:"
-    print "Target Range %.2fm matched at:" % (target_range)
-    print " Range: %.2fm" % (rg)
-    print " Departure Angle: %.4fdeg" % (math.degrees(l))
+    for ((ff, l, rg, count)) in shots:
+        print "Form Factor: %.6f" % (ff)
+        print " Departure angle %.4fdeg" % (math.degrees(l))
+        print " Range %.2fm" % (rg)
 
 def range_table(args):
     (alt, l, mv, C) = common_setup(args)
@@ -555,7 +576,6 @@ def add_common_args(parser):
 def add_match_args(parser):
     parser.add_argument('--target-range',
         action='store',
-        required=True,
         type=float,
         help='Target range')
     parser.add_argument('--tolerance',
@@ -612,7 +632,6 @@ def parse_args():
         help="Find the form factor to achieve the specified target range")
     parser_ff.add_argument('-l', '--departure-angle',
         action='store',
-        required=True,
         type=float,
         help="Departure Angle")
     parser_ff.add_argument('-f', '--form-factor',
@@ -621,6 +640,13 @@ def parse_args():
         type=float,
         help='Projectile form factor',
         default=1.0)
+    parser_ff.add_argument('--shot',
+        action='append',
+        required=False,
+        help=(
+            'Set of <angle,range> tuples - may be used more than once, with '
+            'each tuple being simulated'
+        ))
     add_match_args(parser_ff)
     add_common_args(parser_ff)
     parser_ff.set_defaults(func=match_form_factor,
