@@ -173,7 +173,7 @@ def one_shot(alt, mv, l, C):
     global print_traj
     if print_traj:
         print_trajectory(trajectory)
-    return (tt, rg, mv, l)
+    return (tt, rg, mv, l, trajectory)
 
 def interpolate(a, x1, x2, y1, y2):
     # a is a value between x1 and x2 - interpolate a corresponding value
@@ -218,7 +218,9 @@ def single_run(args):
     print_initial_conditions(args)
     print ""
 
-    (tt, rg, iv, il) = one_shot(alt, mv, l, C)
+    (tt, rg, iv, il, traj) = one_shot(alt, mv, l, C)
+    if args.print_trajectory:
+        print_trajectory(traj)
     print "Final conditions:"
     print "Time of flight: %.2fs" % (tt)
     print "Range: %.2fm" % (rg)
@@ -239,7 +241,7 @@ def single_run(args):
 # narrowing the window until it converges on the maximum. At each iteration we
 # replace the edge of the window that corresponds to the lowest range with a
 # point half-way between the old edge and the mid point.
-def _max_range(alt, mv, C, args):
+def _max_range(alt, mv, C):
     tolerance = math.radians(0.05)
     low = math.radians(0.0)
     high = math.radians(90.0)
@@ -250,17 +252,17 @@ def _max_range(alt, mv, C, args):
     mid = (low + high)/2.0
     l = (mid + low)/2.0
     h = (mid + high)/2.0
-    (_, rg_low, _, _) = one_shot(alt, mv, l, C)
-    (_, rg_high, _, _) = one_shot(alt, mv, h, C)
+    (_, rg_low, _, _, _) = one_shot(alt, mv, l, C)
+    (_, rg_high, _, _, _) = one_shot(alt, mv, h, C)
     while abs(high - low) > tolerance:
         if rg_low < rg_high:
             low = l
             l = (mid + low)/2.0
-            (_, rg_low, _, _) = one_shot(alt, mv, l, C)
+            (_, rg_low, _, _, _) = one_shot(alt, mv, l, C)
         else:
             high = h
             h = (mid + high)/2.0
-            (_, rg_high, _, _) = one_shot(alt, mv, h, C)
+            (_, rg_high, _, _, _) = one_shot(alt, mv, h, C)
         if rg_low > rg_max:
             rg_max = rg_low
             da_max = l
@@ -275,7 +277,7 @@ def max_range(args):
     print_projectile_configuration(args)
     print ""
 
-    (rg_max, da) = _max_range(alt, mv, C, args)
+    (rg_max, da) = _max_range(alt, mv, C)
 
     print "Maximum range: %.2fm" % (rg_max)
     print "Departure Angle for maximum range: %.4fdeg" % (math.degrees(da))
@@ -290,7 +292,6 @@ def _match_range(target_range,
                  mv,
                  l,
                  C,
-                 args,
                  rg_max=None,
                  da_max=None):
     high = math.radians(90.0)
@@ -310,7 +311,7 @@ def _match_range(target_range,
         l1 = mid
         mid = (high + low)/2.0
         rg1 = rg
-        (tt, rg, iv, il) = one_shot(alt, mv, mid, C)
+        (tt, rg, iv, il, _) = one_shot(alt, mv, mid, C)
         if rg < rg1 and l1 < mid:
             # we're shooting higher and not going as far - we're on the far
             # end of the curve. At this point we need to ...
@@ -333,7 +334,7 @@ def _match_range(target_range,
 def match_range(args):
     (alt, l, mv, C) = common_setup(args)
     target_range = args.target_range
-    (rg_max, da_max) = _max_range(alt, mv, C, args)
+    (rg_max, da_max) = _max_range(alt, mv, C)
     if target_range > rg_max + 1:
         print "Target range is outside maximum range (%fm)" % (rg_max)
         sys.exit(0)
@@ -344,8 +345,7 @@ def match_range(args):
                                            alt,
                                            mv,
                                            l,
-                                           C,
-                                           args)
+                                           C)
     except ValueError:
         print "Could not converge on range %.1fm" % (target_range)
         sys.exit(0)
@@ -360,13 +360,15 @@ def match_range(args):
     print " Impact Velocity: %.2fm/s" % (iv)
 
 def _match_form_factor(alt, mass, mv, adf, cal, l, tr, tol):
+    # tolerance is specified as a percentage of the target range
+    tol = tr * (tol/100.0)
     ff = 1.0
     C = ballistic_coefficient(
             mass,
             ff,
             adf,
             cal)
-    (_, rg, _, _) = one_shot(alt, mv, l, C)
+    (_, rg, _, _, _) = one_shot(alt, mv, l, C)
     count = 0
     while abs(tr - rg) > tol/2.0:
         ff = ff * (rg/tr)
@@ -375,7 +377,7 @@ def _match_form_factor(alt, mass, mv, adf, cal, l, tr, tol):
             ff,
             adf,
             cal)
-        (_, rg, _, _) = one_shot(alt, mv, l, C)
+        (_, rg, _, _, _) = one_shot(alt, mv, l, C)
         count += 1
     return (ff, l, rg, count)
 
@@ -414,7 +416,7 @@ def match_form_factor(args):
 
 def range_table(args):
     (alt, l, mv, C) = common_setup(args)
-    (rg_max, da_max) = _max_range(alt, mv, C, args)
+    (rg_max, da_max) = _max_range(alt, mv, C)
     increment = args.increment
     start = args.start
     end = args.end
@@ -437,7 +439,6 @@ def range_table(args):
                                                mv,
                                                l,
                                                C,
-                                               args,
                                                rg_max=rg_max,
                                                da_max=da_max)
             print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
@@ -470,7 +471,7 @@ def range_table_angle(args):
     print "-------------------------------------------"
 
     while l <= end and l < 90:
-        (tt, rg, iv, il) = one_shot(alt, mv, l, C, args)
+        (tt, rg, iv, il, _) = one_shot(alt, mv, l, C)
         print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
                                                       rg,
                                                       math.degrees(l),
