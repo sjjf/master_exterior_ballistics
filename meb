@@ -360,8 +360,6 @@ def match_range(args):
     print " Impact Velocity: %.2fm/s" % (iv)
 
 def _match_form_factor(alt, mass, mv, adf, cal, l, tr, tol):
-    # tolerance is specified as a percentage of the target range
-    tol = tr * (tol/100.0)
     ff = 1.0
     C = ballistic_coefficient(
             mass,
@@ -409,10 +407,9 @@ def match_form_factor(args):
         print "Converged after %d iterations" % (count)
     print_projectile_configuration(args)
     print ""
+    print "Departure angle, Range, Form Factor"
     for ((ff, l, rg, count)) in shots:
-        print "Form Factor: %.6f" % (ff)
-        print " Departure angle %.4fdeg" % (math.degrees(l))
-        print " Range %.2fm" % (rg)
+        print "%.4f, %.2f, %.6f" % (math.degrees(l), rg, ff)
 
 def range_table(args):
     (alt, l, mv, C) = common_setup(args)
