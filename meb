@@ -459,14 +459,13 @@ def range_table(args):
             break
 
 def range_table_angle(args):
-    (alt, _, mv, C) = common_setup(args)
-    load_form_factors(args)
     increment = math.radians(args.increment)
     l = math.radians(args.start)
     end = math.radians(args.end)
+    (rg_max, da_max) = _max_range(ALT, MV)
     print "Range Table"
     print_projectile_configuration(args)
-    print "Initial velocity: %.4fm/s" % (mv)
+    print "Initial velocity: %.4fm/s" % (MV)
     print "Air Density Factor: %.4f" % (args.air_density_factor)
     print "Departure Angle increments: %.1fdeg" % (math.degrees(increment))
     print ""
@@ -474,8 +473,8 @@ def range_table_angle(args):
     print "        Angle      Fall   Flight    Vel."
     print "-------------------------------------------"
 
-    while l <= end and l < 90:
-        (tt, rg, iv, il, _) = one_shot(alt, mv, l, C)
+    while l <= ((end*100+1)/100) and l < 90:
+        (tt, rg, iv, il) = one_shot(ALT, MV, l)
         print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
                                                       rg,
                                                       math.degrees(l),
@@ -768,7 +767,6 @@ def parse_args():
         help="Calculate a range table based on departure angle")
     parser_rta.add_argument('-f', '--form-factor',
         action='store',
-        required=True,
         type=float,
         help='Projectile form factor')
     parser_rta.add_argument('--increment',
