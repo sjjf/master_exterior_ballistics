@@ -510,9 +510,11 @@ def get_drag_functions():
 
 def get_KD(v, alt):
     m = v/(CS - (0.004*alt))
-    for i in range(1, len(mach)):
+    i = 1
+    while i < len(mach)-1:
         if m < mach[i]:
             break
+        i += 1
     m1 = mach[i-1]
     m2 = mach[i]
     k1 = kd[i-1]
@@ -524,18 +526,27 @@ departure_angles = []
 form_factors = []
 
 def load_form_factors(args):
-    global departure_angles
-    global form_factors
+    tda = []
+    tff = []
     if 'F' not in args or len(args.F) == 0:
-        departure_angles.append(args.departure_angle)
-        form_factors.append(args.form_factor)
+        tda.append(args.departure_angle)
+        tff.append(args.form_factor)
     else:
         for ff in args.F:
             (da, ff) = ff.split(',')
             da = math.radians(float(da))
             ff = float(ff)
-            departure_angles.append(da)
-            form_factors.append(ff)
+            tda.append(da)
+            tff.append(ff)
+    # these need to be sorted
+    z = zip(tda, tff)
+    z.sort(key=lambda k: k[0])
+    tda, tff = zip(*z)
+
+    global departure_angles
+    global form_factors
+    departure_angles = list(tda)
+    form_factors = list(tff)
 
 def get_FF(da):
     # only one form factor specified?
