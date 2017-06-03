@@ -295,7 +295,6 @@ def _match_range(target_range,
                  alt,
                  mv,
                  l,
-                 C,
                  rg_max=None,
                  da_max=None):
     high = math.radians(90.0)
@@ -315,7 +314,7 @@ def _match_range(target_range,
         l1 = mid
         mid = (high + low)/2.0
         rg1 = rg
-        (tt, rg, iv, il, _) = one_shot(alt, mv, mid, C)
+        (tt, rg, iv, il) = one_shot(alt, mv, mid)
         if rg < rg1 and l1 < mid:
             # we're shooting higher and not going as far - we're on the far
             # end of the curve. At this point we need to ...
@@ -336,10 +335,8 @@ def _match_range(target_range,
     return (tt, rg, iv, il, mid)
 
 def match_range(args):
-    (alt, l, mv, C) = common_setup(args)
-    load_form_factors(args)
     target_range = args.target_range
-    (rg_max, da_max) = _max_range(alt, mv, C)
+    (rg_max, da_max) = _max_range(ALT, MV)
     if target_range > rg_max + 1:
         print "Target range is outside maximum range (%fm)" % (rg_max)
         sys.exit(0)
@@ -347,10 +344,9 @@ def match_range(args):
     try:
         (tt, rg, iv, il, l) = _match_range(target_range,
                                            tolerance,
-                                           alt,
-                                           mv,
-                                           l,
-                                           C)
+                                           ALT,
+                                           MV,
+                                           L)
     except ValueError:
         print "Could not converge on range %.1fm" % (target_range)
         sys.exit(0)
@@ -358,7 +354,7 @@ def match_range(args):
     print ""
     print "Range %.1fm matched at the following conditions:" % (target_range)
     print " Range: %.1fm" % (rg)
-    print " Initial Velocity: %.4fm/s" % (mv)
+    print " Initial Velocity: %.4fm/s" % (MV)
     print " Departure Angle: %.4fdeg" % (math.degrees(l))
     print " Time of flight: %.2fs" % (tt)
     print " Impact Angle: %.4fdeg" % (math.degrees(il))
@@ -545,9 +541,8 @@ def get_FF(da):
     # only one form factor specified?
     if len(departure_angles) == 1:
         return form_factors[0]
-    print len(departure_angles)
     i = 1
-    while i < len(departure_angles):
+    while i < len(departure_angles)-1:
         if da < departure_angles[i]:
             break
         i += 1
