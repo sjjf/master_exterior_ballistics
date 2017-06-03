@@ -246,7 +246,7 @@ def single_run(args):
 # narrowing the window until it converges on the maximum. At each iteration we
 # replace the edge of the window that corresponds to the lowest range with a
 # point half-way between the old edge and the mid point.
-def _max_range(alt, mv, C):
+def _max_range(alt, mv):
     tolerance = math.radians(0.05)
     low = math.radians(0.0)
     high = math.radians(90.0)
@@ -257,17 +257,17 @@ def _max_range(alt, mv, C):
     mid = (low + high)/2.0
     l = (mid + low)/2.0
     h = (mid + high)/2.0
-    (_, rg_low, _, _, _) = one_shot(alt, mv, l, C)
-    (_, rg_high, _, _, _) = one_shot(alt, mv, h, C)
+    (_, rg_low, _, _) = one_shot(alt, mv, l)
+    (_, rg_high, _, _) = one_shot(alt, mv, h)
     while abs(high - low) > tolerance:
         if rg_low < rg_high:
             low = l
             l = (mid + low)/2.0
-            (_, rg_low, _, _, _) = one_shot(alt, mv, l, C)
+            (_, rg_low, _, _) = one_shot(alt, mv, l)
         else:
             high = h
             h = (mid + high)/2.0
-            (_, rg_high, _, _, _) = one_shot(alt, mv, h, C)
+            (_, rg_high, _, _) = one_shot(alt, mv, h)
         if rg_low > rg_max:
             rg_max = rg_low
             da_max = l
@@ -278,12 +278,10 @@ def _max_range(alt, mv, C):
     return (rg_max, da_max)
 
 def max_range(args):
-    (alt, l, mv, C) = common_setup(args)
-    load_form_factors(args)
     print_projectile_configuration(args)
     print ""
 
-    (rg_max, da) = _max_range(alt, mv, C)
+    (rg_max, da) = _max_range(ALT, MV)
 
     print "Maximum range: %.2fm" % (rg_max)
     print "Departure Angle for maximum range: %.4fdeg" % (math.degrees(da))
@@ -532,7 +530,7 @@ form_factors = []
 def load_form_factors(args):
     global departure_angles
     global form_factors
-    if 'F' not in args:
+    if 'F' not in args or len(args.F) == 0:
         departure_angles.append(args.departure_angle)
         form_factors.append(args.form_factor)
     else:
@@ -547,9 +545,12 @@ def get_FF(da):
     # only one form factor specified?
     if len(departure_angles) == 1:
         return form_factors[0]
-    for i in range(1, len(departure_angles)):
+    print len(departure_angles)
+    i = 1
+    while i < len(departure_angles):
         if da < departure_angles[i]:
             break
+        i += 1
     da1 = departure_angles[i-1]
     da2 = departure_angles[i]
     ff1 = form_factors[i-1]
@@ -664,6 +665,7 @@ def parse_args():
         action='append',
         required=False,
         metavar='FF,A',
+        default=[],
         help=(
             '(form factor, departure angle) tuple - used to specify a set of'
             ' form factors that will be used to determine the form factor'
@@ -728,6 +730,7 @@ def parse_args():
         action='append',
         required=False,
         metavar='FF,A',
+        default=[],
         help=(
             '(form factor, departure angle) tuple - used to specify a set of'
             ' form factors that will be used to determine the form factor'
@@ -767,6 +770,7 @@ def parse_args():
         action='append',
         required=False,
         metavar='FF,A',
+        default=[],
         help=(
             '(form factor, departure angle) tuple - used to specify a set of'
             ' form factors that will be used to determine the form factor'
@@ -788,6 +792,7 @@ def parse_args():
         action='append',
         required=False,
         metavar='FF,A',
+        default=[],
         help=(
             '(form factor, departure angle) tuple - used to specify a set of'
             ' form factors that will be used to determine the form factor'
