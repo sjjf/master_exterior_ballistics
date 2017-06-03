@@ -360,33 +360,23 @@ def match_range(args):
     print " Impact Angle: %.4fdeg" % (math.degrees(il))
     print " Impact Velocity: %.2fm/s" % (iv)
 
-def _match_form_factor(alt, mass, mv, adf, cal, l, tr, tol):
+def _match_form_factor(l, tr, tol):
+    clear_form_factors()
     ff = 1.0
-    C = ballistic_coefficient(
-            mass,
-            ff,
-            adf,
-            cal)
-    (_, rg, _, _, _) = one_shot(alt, mv, l, C)
+    update_form_factors(l, ff)
+    (_, rg, _, _) = one_shot(ALT, MV, l)
     count = 0
     while abs(tr - rg) > tol/2.0:
         ff = ff * (rg/tr)
-        C = ballistic_coefficient(
-            mass,
-            ff,
-            adf,
-            cal)
-        (_, rg, _, _, _) = one_shot(alt, mv, l, C)
+        clear_form_factors()
+        update_form_factors(l, ff)
+        (_, rg, _, _) = one_shot(ALT, MV, l)
         count += 1
     return (ff, l, rg, count)
 
 # the form factor is close to linearly related to the range for a given
 # departure angle, so we can use a very focused search scheme
 def match_form_factor(args):
-    (alt, l, mv, C) = common_setup(args)
-    mass = args.mass
-    adf = args.air_density_factor
-    cal = args.caliber
     target_range = args.target_range
     tolerance = args.tolerance
     shots = []
@@ -395,22 +385,17 @@ def match_form_factor(args):
             (da, tr) = shot.split(',')
             da = math.radians(float(da))
             tr = float(tr)
-            (ff, l, rg, count) = _match_form_factor(alt, mass, mv,
-                                                 adf, cal, da,
-                                                 tr, tolerance)
+            (ff, l, rg, count) = _match_form_factor(da, tr, tolerance)
             shots.append((ff, l, rg, count))
     else:
-        (ff, l, rg, count) = _match_form_factor(alt, args.mass, mv,
-                                     args.air_density_factor,
-                                     args.caliber,
-                                     l, target_range, tolerance)
+        (ff, l, rg, count) = _match_form_factor(l, target_range, tolerance)
         shots.append((ff, l, rg, count))
         print "Converged after %d iterations" % (count)
     print_projectile_configuration(args)
     print ""
-    print "Departure angle, Range, Form Factor"
+    print "Range,Departure angle,Form Factor"
     for ((ff, l, rg, count)) in shots:
-        print "%.4f, %.2f, %.6f" % (math.degrees(l), rg, ff)
+        print "%.2f,%.4f,%.6f" % (rg, math.degrees(l), ff)
 
 def range_table(args):
     (alt, l, mv, C) = common_setup(args)
@@ -525,6 +510,12 @@ def get_KD(v, alt):
 departure_angles = []
 form_factors = []
 
+def sort_form_factors(tda, tff):
+    z = zip(tda, tff)
+    z.sort(key=lambda k: k[0])
+    tda, tff = zip(*z)
+    return (list(tda), list(tff))
+
 def load_form_factors(args):
     tda = []
     tff = []
@@ -539,14 +530,22 @@ def load_form_factors(args):
             tda.append(da)
             tff.append(ff)
     # these need to be sorted
-    z = zip(tda, tff)
-    z.sort(key=lambda k: k[0])
-    tda, tff = zip(*z)
-
     global departure_angles
     global form_factors
-    departure_angles = list(tda)
-    form_factors = list(tff)
+    (departure_angles, form_factors) = sort_form_factors(tda, tff)
+
+def clear_form_factors():
+    global departure_angles
+    departure_angles = []
+    global form_factors
+    form_factors = []
+
+def update_form_factors(da, ff):
+    global departure_angles
+    departure_angles.append(da)
+    global form_factors
+    form_factors.append(ff)
+    (departure_angles, form_factors) = sort_form_factors(departure_angles, form_factors)
 
 def get_FF(da):
     # only one form factor specified?
