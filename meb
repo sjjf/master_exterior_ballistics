@@ -85,6 +85,7 @@ Cal = None
 MV = None
 L = None
 Traj = []
+Max_Range = None
 
 # this doesn't fit with the definition from the paper, but the number we
 # get from the code is less than 1 - I'm guessing it's just a question of
@@ -206,11 +207,25 @@ def print_projectile_configuration(args):
     print "Projectile Configuration:"
     print " Mass: %.3fkg" % (args.mass)
     print " Caliber: %.3fmm" % (args.caliber)
-    print " Form Factor: %.4f" % (args.form_factor)
+    # we want to list something meaningful here, if at all possible
+    if len(departure_angles) == 1:
+        print " Form Factor: %.4f" % (form_factors[0])
+    elif len(departure_angles) > 1:
+        print " Form Factor data:"
+        i = 0
+        while i < len(departure_angles):
+            print "  %.4fdeg: %.6f" % (math.degrees(departure_angles[i]),
+                                       form_factors[i])
+            i += 1
     if args.drag_function_file:
         print " Drag Function from file %s" % (args.drag_function_file)
     else:
         print " Drag function: %s" % (args.drag_function)
+    # we don't want to do this calculation here, so we cache it if it's already
+    # been done and use that value
+    if Max_Range:
+        print "Est. max range: %.2fm at %.4fdeg" % (Max_Range[0],
+                                                    math.degrees(Max_Range[1]))
 
 def print_initial_conditions(args):
     print "Initial Conditions:"
@@ -275,6 +290,8 @@ def _max_range(alt, mv):
             rg_max = rg_high
             da_max = h
         mid = (low + high)/2.0
+    global Max_Range
+    Max_Range = (rg_max, da_max)
     return (rg_max, da_max)
 
 def max_range(args):
@@ -391,22 +408,24 @@ def match_form_factor(args):
         (ff, l, rg, count) = _match_form_factor(l, target_range, tolerance)
         shots.append((ff, l, rg, count))
         print "Converged after %d iterations" % (count)
+    # the form factor currently cached is meaningless at the moment, so clear
+    # it rather than print it along with the rest of the projectile
+    # configuration
+    clear_form_factors()
     print_projectile_configuration(args)
     print ""
-    print "Range,Departure angle,Form Factor"
+    print "Form Factor Results (departure angle, form factor):"
     for ((ff, l, rg, count)) in shots:
-        print "%.2f,%.4f,%.6f" % (rg, math.degrees(l), ff)
+        print " %.4f,%.6f" % (math.degrees(l), ff)
 
 def range_table(args):
-    (alt, l, mv, C) = common_setup(args)
-    load_form_factors(args)
-    (rg_max, da_max) = _max_range(alt, mv, C)
+    (rg_max, da_max) = _max_range(ALT, MV)
     increment = args.increment
     start = args.start
     end = args.end
     print "Range Table"
     print_projectile_configuration(args)
-    print "Initial velocity: %.4fm/s" % (mv)
+    print "Initial velocity: %.4fm/s" % (MV)
     print "Air Density Factor: %.4f" % (args.air_density_factor)
     print "Range increments: %.1fm" % (increment)
     print ""
@@ -415,14 +434,14 @@ def range_table(args):
     print "-------------------------------------------"
     target_range = start
     tolerance = 1.0
+    l = 1.0
     while True:
         try:
             (tt, rg, iv, il, l) = _match_range(target_range,
                                                tolerance,
-                                               alt,
-                                               mv,
+                                               ALT,
+                                               MV,
                                                l,
-                                               C,
                                                rg_max=rg_max,
                                                da_max=da_max)
             print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
@@ -710,7 +729,6 @@ def parse_args():
         help="Calculate a range table based on range increments")
     parser_rt.add_argument('-f', '--form-factor',
         action='store',
-        required=True,
         type=float,
         help='Projectile form factor')
     parser_rt.add_argument('--increment',
