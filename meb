@@ -32,9 +32,6 @@ from os import listdir
 from os import path
 import sys
 
-# globals - used in lieu of objectification (for now)
-print_traj = False
-
 # constants
 
 # surface air density (kg/m^3)
@@ -78,18 +75,26 @@ def set_atmosphere(args):
         return
     print "No atmosphere model specified?"
 
+# little bit cheaty, but eh
+I = 0.1
+
+# runtime stuff, global in lieu of objectification
+ALT = None
+M = None
+Cal = None
+MV = None
+L = None
+Traj = []
+
 # this doesn't fit with the definition from the paper, but the number we
 # get from the code is less than 1 - I'm guessing it's just a question of
 # units (the calculation in the paper would result in units of kg/mm^2,
 # whereas this gives us kg/cm^2). Presumably there's a scaling factor hidden
 # somewhere else that makes it all work, because it does seem to work . . .
-def ballistic_coefficient(m, FF, AD, d):
+def ballistic_coefficient(FF):
     # note that this needs to be in cm rather than mm
-    d = d/10.0
-    return m/(FF*AD*pow(d, 2))
-
-# little bit cheaty, but eh
-I = 0.1
+    d = Cal/10.0
+    return M/(FF*AD*pow(d, 2))
 
 def retardation(alt, v, l, C):
     d = atmosphere(alt)
@@ -147,12 +152,13 @@ def print_trajectory(trajectory):
         count += 1
     print ""
 
-
-def one_shot(alt, mv, l, C):
+def one_shot(alt, mv, l):
+    ff = get_FF(l)
+    C = ballistic_coefficient(ff)
     tt = 0.0
     rg = 0.0
-    trajectory = []
-    trajectory.append((alt, tt, rg, mv, l))
+    global Traj
+    Traj.append((alt, tt, rg, mv, l))
     while alt >= 0.0:
         (FH, FV, V, L) = step(alt, mv, l, C)
         alt1 = alt
@@ -165,15 +171,12 @@ def one_shot(alt, mv, l, C):
         mv = V
         l = L
         tt += I
-        trajectory.append((alt, tt, rg, mv, l))
+        Traj.append((alt, tt, rg, mv, l))
     tt = interpolate(0, alt, alt1, tt, tt1)
     rg = interpolate(0, alt, alt1, rg, rg1)
     mv = interpolate(0, alt, alt1, mv, mv1)
     l = interpolate(0, alt, alt1, l, l1)
-    global print_traj
-    if print_traj:
-        print_trajectory(trajectory)
-    return (tt, rg, mv, l, trajectory)
+    return (tt, rg, mv, l)
 
 def interpolate(a, x1, x2, y1, y2):
     # a is a value between x1 and x2 - interpolate a corresponding value
@@ -181,20 +184,23 @@ def interpolate(a, x1, x2, y1, y2):
     return y1 + ((y2 - y1)*((a - x1)/(x2 - x1)))
 
 def common_setup(args):
-    C = ballistic_coefficient(
-            args.mass,
-            args.form_factor,
-            args.air_density_factor,
-            args.caliber)
-    alt = args.altitude
-    l = 0.0
+    global ALT
+    ALT = args.altitude
+    global L
+    L = 0.0
     if args.departure_angle:
-        l = math.radians(args.departure_angle)
-    mv = args.mv
+        L = math.radians(args.departure_angle)
+    global MV
+    MV = args.mv
+    global Cal
+    Cal = args.caliber
+    global AD
+    AD = args.air_density_factor
+    global M
+    M = args.mass
     if "timestep" in args:
         global I
         I = args.timestep
-    return (alt, l, mv, C)
 
 def print_projectile_configuration(args):
     print "Projectile Configuration:"
@@ -213,14 +219,13 @@ def print_initial_conditions(args):
     print " Air Density Factor: %.6f" % (args.air_density_factor)
 
 def single_run(args):
-    (alt, l, mv, C) = common_setup(args)
     print_projectile_configuration(args)
     print_initial_conditions(args)
     print ""
 
-    (tt, rg, iv, il, traj) = one_shot(alt, mv, l, C)
+    (tt, rg, iv, il) = one_shot(ALT, MV, L)
     if args.print_trajectory:
-        print_trajectory(traj)
+        print_trajectory(Traj)
     print "Final conditions:"
     print "Time of flight: %.2fs" % (tt)
     print "Range: %.2fm" % (rg)
@@ -274,6 +279,7 @@ def _max_range(alt, mv, C):
 
 def max_range(args):
     (alt, l, mv, C) = common_setup(args)
+    load_form_factors(args)
     print_projectile_configuration(args)
     print ""
 
@@ -333,6 +339,7 @@ def _match_range(target_range,
 
 def match_range(args):
     (alt, l, mv, C) = common_setup(args)
+    load_form_factors(args)
     target_range = args.target_range
     (rg_max, da_max) = _max_range(alt, mv, C)
     if target_range > rg_max + 1:
@@ -413,6 +420,7 @@ def match_form_factor(args):
 
 def range_table(args):
     (alt, l, mv, C) = common_setup(args)
+    load_form_factors(args)
     (rg_max, da_max) = _max_range(alt, mv, C)
     increment = args.increment
     start = args.start
@@ -454,6 +462,7 @@ def range_table(args):
 
 def range_table_angle(args):
     (alt, _, mv, C) = common_setup(args)
+    load_form_factors(args)
     increment = math.radians(args.increment)
     l = math.radians(args.start)
     end = math.radians(args.end)
@@ -496,6 +505,15 @@ def load_drag_function(df_filename):
         print "Loading drag function failed:", e
         sys.exit(1)
 
+def get_drag_functions():
+    try:
+        dfs = listdir('drag_functions')
+        dfs = [path.basename(path.splitext(t)[0]) for t in dfs]
+        dfs.sort()
+        return dfs
+    except OSError as e:
+        print "Failed to open drag function directory: %s" % (e)
+
 def get_KD(v, alt):
     m = v/(CS - (0.004*alt))
     for i in range(1, len(mach)):
@@ -508,14 +526,35 @@ def get_KD(v, alt):
     t = ((m - m1)/(m2 - m1))*(k2 - k1) + k1
     return t
 
-def get_drag_functions():
-    try:
-        dfs = listdir('drag_functions')
-        dfs = [path.basename(path.splitext(t)[0]) for t in dfs]
-        dfs.sort()
-        return dfs
-    except OSError as e:
-        print "Failed to open drag function directory: %s" % (e)
+departure_angles = []
+form_factors = []
+
+def load_form_factors(args):
+    global departure_angles
+    global form_factors
+    if 'F' not in args:
+        departure_angles.append(args.departure_angle)
+        form_factors.append(args.form_factor)
+    else:
+        for ff in args.F:
+            (da, ff) = ff.split(',')
+            da = math.radians(float(da))
+            ff = float(ff)
+            departure_angles.append(da)
+            form_factors.append(ff)
+
+def get_FF(da):
+    # only one form factor specified?
+    if len(departure_angles) == 1:
+        return form_factors[0]
+    for i in range(1, len(departure_angles)):
+        if da < departure_angles[i]:
+            break
+    da1 = departure_angles[i-1]
+    da2 = departure_angles[i]
+    ff1 = form_factors[i-1]
+    ff2 = form_factors[i]
+    return interpolate(da, da1, da2, ff1, ff2)
 
 def add_common_args(parser):
     parser.add_argument('-v', '--mv',
@@ -621,6 +660,15 @@ def parse_args():
         required=True,
         type=float,
         help='Projectile form factor')
+    parser_mr.add_argument('-F',
+        action='append',
+        required=False,
+        metavar='FF,A',
+        help=(
+            '(form factor, departure angle) tuple - used to specify a set of'
+            ' form factors that will be used to determine the form factor'
+            ' for a given shot by interpolation'
+        ))
     add_match_args(parser_mr)
     add_common_args(parser_mr)
     parser_mr.set_defaults(func=match_range,
@@ -641,6 +689,7 @@ def parse_args():
     parser_ff.add_argument('--shot',
         action='append',
         required=False,
+        metavar='A,R',
         help=(
             'Set of <angle,range> tuples - may be used more than once, with '
             'each tuple being simulated'
@@ -675,6 +724,15 @@ def parse_args():
         type=float,
         default=100000.0,
         help='End range')
+    parser_rt.add_argument('-F',
+        action='append',
+        required=False,
+        metavar='FF,A',
+        help=(
+            '(form factor, departure angle) tuple - used to specify a set of'
+            ' form factors that will be used to determine the form factor'
+            ' for a given shot by interpolation'
+        ))
     add_common_args(parser_rt)
     parser_rt.set_defaults(func=range_table,
         print_trajectory=False,
@@ -705,20 +763,38 @@ def parse_args():
         type=float,
         default=50.0,
         help='End departure angle')
+    parser_rta.add_argument('-F',
+        action='append',
+        required=False,
+        metavar='FF,A',
+        help=(
+            '(form factor, departure angle) tuple - used to specify a set of'
+            ' form factors that will be used to determine the form factor'
+            ' for a given shot by interpolation'
+        ))
     add_common_args(parser_rta)
     parser_rta.set_defaults(func=range_table_angle,
         print_trajectory=False,
         departure_angle=45.0)
 
-    parser_mr = subparsers.add_parser('max-range',
+    parser_mar = subparsers.add_parser('max-range',
         help="Find the maximum range for a given projectile configuration")
-    parser_mr.add_argument('-f', '--form-factor',
+    parser_mar.add_argument('-f', '--form-factor',
         action='store',
         required=True,
         type=float,
         help='Projectile form factor')
-    add_common_args(parser_mr)
-    parser_mr.set_defaults(func=max_range,
+    parser_mar.add_argument('-F',
+        action='append',
+        required=False,
+        metavar='FF,A',
+        help=(
+            '(form factor, departure angle) tuple - used to specify a set of'
+            ' form factors that will be used to determine the form factor'
+            ' for a given shot by interpolation'
+        ))
+    add_common_args(parser_mar)
+    parser_mar.set_defaults(func=max_range,
         print_trajectory=False,
         departure_angle=45.0)
 
@@ -740,6 +816,8 @@ def main():
         (mach, kd) = load_drag_function(dff)
 
     set_atmosphere(args)
+    common_setup(args)
+    load_form_factors(args)
     args.func(args)
 
 if __name__ == '__main__':
