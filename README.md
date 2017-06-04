@@ -53,10 +53,12 @@ and so on. To account for differences between the test projectiles that were
 used to derive the drag function, a form factor is used to scale the chosen
 drag function to match the performance of the real projectile.
 
-The form factor is specified as a single floating point number, using the
-`--form-factor` command line option. Since it acts to scale the retarding force
-experienced by the projectile, a larger form factor results in more drag, and a
-shorter range.
+The form factor can be specified as a single floating point number, using the
+`--form-factor` command line option, or as a collection of departure angle and
+form factor pairs using the `-F` option, which together define a "form factor
+function" which is used to determine the form factor across a range of
+departure angles.  Since it acts to scale the retarding force experienced by
+the projectile, a larger form factor results in more drag, and a shorter range.
 
 Drag functions in this program are presented as a CSV formatted table of mach
 numbers mapped to drag coefficient values. Historical drag functions are
@@ -66,24 +68,25 @@ to this directory, or a drag function file can be specified directly on the
 command line using the `--drag-function-file` option.
 
 The model performance may also be modified using the `--air-density-factor`
-option, which applies a scaling factor to the ballistic coefficient to account
-for changes in air density.
+option, which applies a simple scaling factor to the ballistic coefficient to
+account for changes in air density.
 
 # Modes of Use
 
 This program can be used in a number of ways: to model a single "firing" of a
-projectile; to estimate the form factor required to replicate the performance
-of a known projectile with a given drag function under specified conditions; to
-calculate the maximum range of a given projectile configuration; and to
-calculate range tables.
+projectile; to estimate the form factor(s) required to replicate the
+performance of a known projectile with a given drag function under specified
+conditions; to estimate the maximum range of a given projectile configuration;
+and to calculate range tables.
 
 In all these modes the projectile configuration is specified by the mass,
-caliber, drag function and form factor. A single "shot" will also specify the
-departure angle and initial velocity; an attempt to match a range will specify
-the initial velocity and allow the departure angle to vary until shots achieve
-the targeted range; and an attempt to find the form factor will specify the
-initial velocity, departure angle, and the expected range for the shot, and
-then vary the form factor until the shot matches the specified range.
+caliber, drag function and some form factor data. A single "shot" will also
+specify the departure angle and initial velocity; an attempt to match a range
+will specify the initial velocity and allow the departure angle to vary until
+shots achieve the targeted range; and an attempt to determine the form factor
+data will specify the initial velocity, departure angle, and the expected range
+for the set of known shots, and then vary the form factor until each shot
+matches the specified range.
 
 ## Single Run
 
@@ -99,19 +102,23 @@ out the trajectory in detail.
 In order to derive the form factor required to match a particular projectile's
 performance for a known set of initial conditions a target range and angle of
 departure must be specified. The program then performs multiple runs varying
-only the form factor until a shot matching the specified conditions is achieved.
+only the form factor until a shot matching the specified conditions is
+achieved. Support is also included for specifying a list of departure angle and
+range pairs, with each of these pairs being modeled separately.
 
 Note that the form factor is not consistent across all possible initial
 conditions, since it attempts to encapsulate a range of physical properties not
 all of which are constant for all mach numbers. In most cases the form factor
-will need to be matched for multiple target ranges in order to achieve results
-consistent with historical data.
+will need to be specified for multiple departure angles in order to achieve
+results consistent with historical data.
 
 ## Maximum Range Calculation
 
 In this mode the program will perform multiple runs to search for the departure
 angle which results in the maximum range for a particular projectile
-configuration, displaying the range and departure angle found.
+configuration, displaying the range and departure angle found. Due to
+variability in the form factor this should be considered a reasonable estimate,
+not a precise calculation.
 
 ## Range Table Calculation
 
@@ -119,6 +126,11 @@ The program supports creating two varieties of range table, one calculated for
 increments of departure angle, and one calculated for increments of range -
 this method emulates historical range tables. The start and end values can be
 specified, as well as the increments.
+
+Without source data across the full range being modeled this will produce a
+very rough estimate, since the form factor will almost certainly vary
+significantly across the range table. The best results will be obtained by
+"filling in" the gaps in an already well specified range table.
 
 # Limitations and Caveats
 

@@ -58,15 +58,14 @@ factor as 1.0 and see how it goes.
 To model a single shot the program should be run with the command `single`:
 
 ```
-$ ./master_exterior_ballistics.py single -h 
-usage: master_exterior_ballistics.py single [-h] -l DEPARTURE_ANGLE [-t] -f
-                                            FORM_FACTOR -v MV -m MASS -c
-                                            CALIBER [-a ALTITUDE]
-                                            [-I TIMESTEP]
-                                            [--air-density-factor AIR_DENSITY_FACTOR]
-                                            [--density-function {US,UK,ICAO}]
-                                            [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                                            [--drag-function-file DRAG_FUNCTION_FILE]
+$ ./meb single -h
+
+usage: meb single [-h] -l DEPARTURE_ANGLE [-t] -f FORM_FACTOR -v MV -m MASS -c
+                  CALIBER [-a ALTITUDE] [-I TIMESTEP]
+                  [--air-density-factor AIR_DENSITY_FACTOR]
+                  [--density-function {US,UK,ICAO}]
+                  [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                  [--drag-function-file DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -98,7 +97,7 @@ optional arguments:
 Putting the values we determined above onto the command line gives this:
 
 ```
-$ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
         -l 45.2483 -f 1.0 --drag-function KD6
 ```
 
@@ -127,8 +126,8 @@ that the modelled drag was slightly too high. This can be adjusted by decreasing
 the form factor, for example to 0.9.
 
 ```
-$ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
-    -l 45.2483 -f 1.1 --drag-function KD6
+$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
+    -l 45.2483 -f 0.9 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
@@ -157,19 +156,15 @@ narrowing it down to whatever precision we desired. However, the program
 supports doing this automatically, using the `find-ff` command:
 
 ```
-usage: master_exterior_ballistics.py find-ff [-h] -l DEPARTURE_ANGLE
-                                             [-f FORM_FACTOR] --target-range
-                                             TARGET_RANGE
-                                             [--tolerance TOLERANCE] -v MV -m
-                                             MASS -c CALIBER [-a ALTITUDE]
-                                             [-I TIMESTEP]
-                                             [--air-density-factor
-AIR_DENSITY_FACTOR]
-                                             [--density-function {US,UK,ICAO}]
-                                             [--drag-function
-{1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                                             [--drag-function-file
-DRAG_FUNCTION_FILE]
+$ ./meb find-ff -h
+
+usage: meb find-ff [-h] [-l DEPARTURE_ANGLE] [-f FORM_FACTOR] [--shot A,R]
+                   [--target-range TARGET_RANGE] [--tolerance TOLERANCE] -v MV
+                   -m MASS -c CALIBER [-a ALTITUDE] [-I TIMESTEP]
+                   [--air-density-factor AIR_DENSITY_FACTOR]
+                   [--density-function {US,UK,ICAO}]
+                   [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                   [--drag-function-file DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -177,6 +172,8 @@ optional arguments:
                         Departure Angle
   -f FORM_FACTOR, --form-factor FORM_FACTOR
                         Projectile form factor
+  --shot A,R            Set of <angle,range> tuples - may be used more than
+                        once, with each tuple being simulated
   --target-range TARGET_RANGE
                         Target range
   --tolerance TOLERANCE
@@ -208,22 +205,17 @@ Using the previously specified shot, with a target range of 36210m at a
 departure angle of 45.2483 degrees:
 
 ```
-$ ./master_exterior_ballistics.py find-ff -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 \
          --drag-function KD6 --target-range 36210 -l 45.2483
 
+Converged after 7 iterations
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.0000
  Drag function: KD6
-Converged after 7 iterations
 
-Form Factor: 0.996695
-
-Form Factor found for projectile at the following conditions:
-Target Range 36210.00m matched at:
- Range: 36209.52m
- Departure Angle: 45.2483deg
+Form Factor Results (departure angle, form factor):
+ 45.2483,0.996695
 ```
 
 The program has found the required form factor to match the shot - 0.996695. As
@@ -233,7 +225,7 @@ To verify that this is correct we can re-run the single shot mode that we tried
 before, using the new value for the form factor:
 
 ```
-$ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48
+$ ./meb single -m 952.544 -c 406.4 -v 792.48
         -l 45.2483 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
@@ -280,7 +272,7 @@ Taking the first row in our sample, converted to metric:
 Modeling this shot gives us:
 
 ```
-$ ./master_exterior_ballistics.py single -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
         -l 35.4617 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
@@ -298,7 +290,6 @@ Time of flight: 78.24s
 Range: 33834.29m
 Impact Angle: -48.5307deg
 Impact Velocity: 435.86m/s
-
 ```
 
 These numbers are very close, though not a perfect match in all details - in
@@ -308,23 +299,17 @@ performance. We can go back and run the find-ff command again with this shot as
 the target data to quantify this match:
 
 ```
-$ ./master_exterior_ballistics.py find-ff -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 \
 		 --drag-function KD6 --target-range 33832.8 -l 35.4617
 
+Converged after 8 iterations
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Form Factor: 1.0000
  Drag function: KD6
-Converged after 8 iterations
 
-Form Factor: 0.996803
-
-Form Factor found for projectile at the following conditions:
-Target Range 33832.80m matched at:
- Range: 33832.53m
- Departure Angle: 35.4617deg
-
+Form Factor Results (departure angle, form factor):
+ 35.4617,0.996803
 ```
 
 The resulting form factor differs by 0.0001, or about 1 parts in 10000,
@@ -343,21 +328,15 @@ metric gives a range from 33832.8m to 36210m in 91.44m increments. The range
 table can be replicated using the `range-table` command:
 
 ```
-$ ./master_exterior_ballistics.py range-table --help
+$ ./meb range-table --help
 
-usage: master_exterior_ballistics.py range-table [-h] -f FORM_FACTOR
-                                                 [--increment INCREMENT]
-                                                 [--start START] [--end END]
-                                                 -v MV -m MASS -c CALIBER
-                                                 [-a ALTITUDE] [-I TIMESTEP]
-                                                 [--air-density-factor
-AIR_DENSITY_FACTOR]
-                                                 [--density-function
-{US,UK,ICAO}]
-                                                 [--drag-function
-{1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                                                 [--drag-function-file
-DRAG_FUNCTION_FILE]
+usage: meb range-table [-h] [-f FORM_FACTOR] [--increment INCREMENT]
+                       [--start START] [--end END] [-F FF,A] -v MV -m MASS -c
+                       CALIBER [-a ALTITUDE] [-I TIMESTEP]
+                       [--air-density-factor AIR_DENSITY_FACTOR]
+                       [--density-function {US,UK,ICAO}]
+                       [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
+                       [--drag-function-file DRAG_FUNCTION_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -367,6 +346,9 @@ optional arguments:
                         Range steps for range table
   --start START         Starting range
   --end END             End range
+  -F FF,A               (form factor, departure angle) tuple - used to specify
+                        a set of form factors that will be used to determine
+                        the form factor for a given shot by interpolation
   -v MV, --mv MV        Initial velocity
   -m MASS, --mass MASS  Projectile mass
   -c CALIBER, --caliber CALIBER
@@ -390,9 +372,9 @@ The projectile details stay the same, and we simply specify the start, end and
 increment:
 
 ```
-$ ./master_exterior_ballistics.py range-table -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb range-table -m 952.544 -c 406.4 -v 792.48 \
         -f 0.996695 --drag-function KD6 --start 33832.8 --end 36210 \
-         --increment 91.44
+        --increment 91.44
 
 Range Table
 Projectile Configuration:
@@ -400,6 +382,7 @@ Projectile Configuration:
  Caliber: 406.400mm
  Form Factor: 0.9967
  Drag function: KD6
+Est. max range: 36301.84m at 47.4681deg
 Initial velocity: 792.4800m/s
 Air Density Factor: 1.0000
 Range increments: 91.4m
@@ -447,3 +430,90 @@ factor, but without having access to a wider range of data any extensions beyond
 the table produced above would be of questionable validity. However, within the
 range of data that we have any simulated shots should be a solid match for
 reality.
+
+In a case where the match was less close we can specify multiple values for the
+form factor, and the program will interpolate between them when calculating
+intermediate ranges. We can determine the form factor for a number of different
+known scenarios at once using the `--shot` option:
+
+```
+$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+        --shot 35.4617,33832.8 \
+        --shot 45.2483,36210
+
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Drag function: KD6
+
+Form Factor Results (departure angle, form factor):
+ 35.4617,0.996803
+ 45.2483,0.996695
+```
+
+Each `--shot` option specifies the departure angle and the target range, and
+the program will calulate the form factor for each. There is no limit to the
+number of times this option can be used.
+
+Once we have the form factors we can use the `-F` option to pass in a list of
+departure angle to form factor pairs - as noted above, the program will
+interpolate between the available data points to determine the form factor for
+a given departure angle:
+
+```
+$ ./meb range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+        --start 33832.8 --end 36210 --increment 91.44 \
+        -F 35.4617,0.996803 \
+        -F 45.2483,0.996695
+
+Range Table
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Form Factor data:
+  35.4617deg: 0.996803
+  45.2483deg: 0.996695
+ Drag function: KD6
+Est. max range: 36302.28m at 47.4757deg
+Initial velocity: 792.4800m/s
+Air Density Factor: 1.0000
+Range increments: 91.4m
+
+ Range Departure Angle of Time of Striking
+        Angle      Fall   Flight    Vel.
+-------------------------------------------
+ 33832  35.4612 -48.5313  78.24   435.84
+ 33924  35.7012 -48.7551  78.68   436.51
+ 34016  35.9441 -48.9799  79.12   437.20
+ 34107  36.1898 -49.2058  79.56   437.90
+ 34198  36.4414 -49.4353  80.02   438.63
+ 34290  36.6988 -49.6683  80.48   439.37
+ 34381  36.9590 -49.9022  80.95   440.14
+ 34472  37.2250 -50.1396  81.43   440.92
+ 34565  37.4997 -50.3829  81.92   441.74
+ 34655  37.7773 -50.6268  82.42   442.57
+ 34747  38.0636 -50.8765  82.93   443.43
+ 34839  38.3585 -51.1318  83.45   444.32
+ 34930  38.6621 -51.3926  83.99   445.24
+ 35022  38.9744 -51.6587  84.54   446.19
+ 35113  39.2954 -51.9300  85.10   447.17
+ 35204  39.6279 -52.2088  85.68   448.20
+ 35296  39.9749 -52.4973  86.29   449.27
+ 35387  40.3335 -52.7929  86.91   450.38
+ 35479  40.7152 -53.1049  87.57   451.57
+ 35570  41.1113 -53.4258  88.26   452.82
+ 35662  41.5335 -53.7648  88.98   454.14
+ 35754  41.9875 -54.1258  89.76   455.57
+ 35844  42.4732 -54.5084  90.58   457.11
+ 35936  43.0111 -54.9277  91.49   458.81
+ 36027  43.6183 -55.3958  92.50   460.74
+ 36118  44.3296 -55.9374  93.68   463.02
+ 36210  45.2550 -56.6318  95.20   465.99
+```
+
+The differences between the two tables are extremely small, but in a case where
+the drag function was a less perfect match the result of this will be a better
+match for reality. Given sufficient source data this method can be used to give
+a reliable result across a wide range of departure angles, always with the
+proviso that moving outside the range of the source data can affect the
+reliability and accuracy of the results.
