@@ -405,7 +405,7 @@ def match_form_factor(args):
             (ff, l, rg, count) = _match_form_factor(da, tr, tolerance)
             shots.append((ff, l, rg, count))
     else:
-        (ff, l, rg, count) = _match_form_factor(l, target_range, tolerance)
+        (ff, l, rg, count) = _match_form_factor(L, target_range, tolerance)
         shots.append((ff, l, rg, count))
         print "Converged after %d iterations" % (count)
     # the form factor currently cached is meaningless at the moment, so clear
