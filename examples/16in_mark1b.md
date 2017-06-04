@@ -40,28 +40,166 @@ The projectile has a conical nose that is 6crh, and a flat base with no
 boattail. Though it's not a perfect match the KD2 drag function looks like the
 closest, with the next closest option being the KD8 drag function - with no
 boattail, but with a shorter 5/10crh nose, or the KD6 drag function, with no
-boattail and a 6crh nose.
+boattail and a 6crh nose. We also know that it's a British design, so using the
+UK atmospheric model makes sense.
 
 To test the drag functions the simplest option is to calculate the form factor
-required to match each row in the table using the different drag functions, and
-observe the variation. The following table shows the results of this.
+required to match each row in the table using the different drag functions
+(using the program's find-ff command), and observe the variation. The
+following table shows the results of this.
 
-Range | Departure Angle | Form Factor KD2 | Form Factor KD6 | Form Factor KD8
-:----:|:---------------:|:---------------:|:---------------:|:----------------:
-4572  |  2.3            |   0.791331      |   0.653026      |  0.709835       
-9144  |  5.1            |   1.031029      |   0.846304      |  0.923617       
-13716 |  8.5            |   1.076148      |   0.883124      |  0.965467       
-18288 |  12.5           |   1.054688      |   0.867894      |  0.948696       
-22860 |  17.5           |   1.059020      |   0.875591      |  0.955478       
-27432 |  23.7           |   1.061095      |   0.881796      |  0.959820       
-32004 |  32.4           |   1.081135      |   0.903397      |  0.980209        
-34290 |  39.2           |   1.091025      |   0.914356      |  0.990151       
+| Range | Departure Angle | Form Factor KD2 | Form Factor KD6 | Form Factor KD8  |
+|:-----:|:---------------:|:---------------:|:---------------:|:----------------:|
+| 4572  |     2.3         |    0.791396     |    0.65308      |    0.709893      |
+| 9144  |     5.1         |    1.031422     |    0.84663      |    0.923971      |
+| 13716 |     8.5         |    1.077233     |    0.884012     |    0.966435      |
+| 18288 |     12.5        |    1.056845     |    0.869662     |    0.950629      |
+| 22860 |     17.5        |    1.06292      |    0.87881      |    0.95898       |
+| 27432 |     23.7        |    1.067552     |    0.887086     |    0.965627      |
+| 32004 |     32.4        |    1.091568     |    0.911992     |    0.989613      |
+| 34290 |     39.2        |    1.104528     |    0.925493     |    1.002287      |
 
 Plotting these will make it easier to interpret the data:
 
 ![Form Factors for KD2, KD6 and KD8 plotted against Departure
 Angle](/examples/16in-45-mk1-ff.svg)
 
-This suggests that none of the form factors are a good match for this
+This suggests that none of the drag functions are a good match for this
 projectile - it appears to have a drag function that differs markedly from any
-of the functions tested.
+of the functions tested. The shape of the form factor plot for each is almost
+identical, so it probably won't make much difference which we use.
+
+The shape of the plot also suggests that there may be two different modeling
+regimes encapsulated in this range data: a nearly straight line above 15
+degrees, and a more complex curve below 15 degrees, with some kind of
+smoothing between the two cases. This may be a result of the original range
+table being calculated using two different methods - historically, it was
+common for the low-angle portion of the range table to be calculated using a
+simpler approximation to numerical integration which was sufficiently accurate
+for flat fire (typically something like the Siacci method), with a more
+complete numerical integration technique used for the remainder, and some form
+of graphical smoothing applied to meld the two.  This doesn't affect the
+validity of the form factors determined by this method, but it does mean that
+attempting to extrapolate outside the source data on the low end will be very
+questionable - we should start our range table at 5000 yards, rather than try
+and extrapolate further.
+
+It's also worth noting that the higher portion of the range table is quite
+flat, but with a significant slope - this indicates that even in the best case
+none of the drag functions match what might be called the "native" drag
+function of the projectile. The slope of the line for a perfectly matched drag
+function would be zero (i.e. the form factor would be constant across the
+whole range).
+
+For our purposes we will pick the KD8 drag function, but any of these would
+provide a solid match.
+
+# Calculating the Range Table
+
+We now have a drag function that we've determined should provide a reasonable
+match, and we've got a set of departure angle to form factor pairs which we
+can use to model the range table. We're using the KD8 drag function, which
+gives us the following form factor data:
+
+| Departure Angle | Form Factor |
+|:---------------:|:-----------:|
+|     2.3         |   0.709893  |
+|     5.1         |   0.923971  |
+|     8.5         |   0.966435  |
+|     12.5        |   0.950629  |
+|     17.5        |   0.95898   |
+|     23.7        |   0.965627  |
+|     32.4        |   0.989613  |
+|     39.2        |   1.002287  |
+
+and we're using the UK atmospheric model.
+
+All of this can now be used to specify the range table calculation. Note that
+we start at the bottom of the range we have source data for (4572m), and we
+end close to the top of the range we have source data for (35000m). We use a
+500yd (457.2m) increment for this example.
+
+```
+$ ./meb range-table -m 928.927 -c 406.4 -v 769.62 \
+        --drag-function KD8 --density-function UK \
+        --start 4572 --end 35000 \
+        --increment 457.2 \
+        -F 2.3,0.709893   \
+        -F 5.1,0.923971   \
+        -F 8.5,0.966435   \
+        -F 12.5,0.950629  \
+        -F 17.5,0.95898   \
+        -F 23.7,0.965627  \
+        -F 32.4,0.989613  \
+        -F 39.2,1.002287
+
+Range Table
+Projectile Configuration:
+ Mass: 928.927kg
+ Caliber: 406.400mm
+ Form Factor data:
+  2.3000deg: 0.709893
+  5.1000deg: 0.923971
+  8.5000deg: 0.966435
+  12.5000deg: 0.950629
+  17.5000deg: 0.958980
+  23.7000deg: 0.965627
+  32.4000deg: 0.989613
+  39.2000deg: 1.002287
+ Drag function: KD8
+Est. max range: 35167.55m at 46.2920deg
+Initial velocity: 769.6200m/s
+Air Density Factor: 1.0000
+Range increments: 457.2m
+
+ Range Departure Angle of Time of Striking
+        Angle      Fall   Flight    Vel.
+-------------------------------------------
+  4572   2.3005  -2.4373   6.21   705.65
+  5029   2.5507  -2.7232   6.87   697.56
+  5486   2.8059  -3.0198   7.54   689.15
+  5943   3.0666  -3.3287   8.22   680.40
+  6401   3.3338  -3.6512   8.92   671.28
+  .
+  .
+  .
+ 30175  28.4710 -40.3711  64.27   423.19
+ 30632  29.3788 -41.4554  65.99   424.01
+ 31090  30.3317 -42.5613  67.79   425.11
+ 31547  31.3354 -43.6912  69.65   426.50
+ 32004  32.4011 -44.8534  71.61   428.22
+ 32461  33.5063 -46.0081  73.63   430.42
+ 32918  34.6975 -47.2103  75.78   433.00
+ 33376  36.0042 -48.4814  78.11   436.05
+ 33833  37.4731 -49.8552  80.69   439.70
+ 34290  39.1985 -51.4016  83.66   444.24
+ 34748  41.4371 -53.3119  87.43   450.43
+```
+
+Plotting the calculated data against the source data to compare the accuracy
+gives the following for departure and impact angles:
+
+![Range vs Departure and Impact Angles, source vs calculated
+data](/examples/16in-45-mk1-rt-angles.svg)
+
+and for impact velocity:
+
+![Range vs Impact Velocity, source vs calculated
+data](/examples/16in-45-mk1-rt-iv.svg)
+
+The calculated data matches the source data very well across the full range,
+with the biggest discrepancies being in the impact velocity. The impact
+velocity is the value that was hardest to measure historically, and hence the
+one which was most reliant on numerical modeling - in this case our value is
+as likely to be accurate as the historical value.
+
+# Conclusion
+
+In this example we have demonstrated that given reasonable source data we can
+recreate a nearly complete range table with a good degree of accuracy. We've
+been able to determine that the projectile's "native" drag function is
+significantly different to the standard drag functions we tested - the conical
+nose and lack of boattail makes its performance noticeably different to any of
+the standard projectiles. We've also been able to find some information about
+the source data - the probable use of a different calculation method for flat
+fire portions of the range table. 
