@@ -62,7 +62,7 @@ following table shows the results of this.
 Plotting these will make it easier to interpret the data:
 
 ![Form Factors for KD2, KD6 and KD8 plotted against Departure
-Angle](/examples/16in-45-mk1-ff.svg)
+Angle](/examples/16in-45-mk1-ff.png)
 
 This suggests that none of the drag functions are a good match for this
 projectile - it appears to have a drag function that differs markedly from any
@@ -120,7 +120,7 @@ end close to the top of the range we have source data for (35000m). We use a
 500yd (457.2m) increment for this example.
 
 ```
-$ ./meb range-table -m 928.927 -c 406.4 -v 769.62 \
+$ ./meb.py range-table -m 928.927 -c 406.4 -v 769.62 \
         --drag-function KD8 --density-function UK \
         --start 4572 --end 35000 \
         --increment 457.2 \
@@ -180,12 +180,12 @@ Plotting the calculated data against the source data to compare the accuracy
 gives the following for departure and impact angles:
 
 ![Range vs Departure and Impact Angles, source vs calculated
-data](/examples/16in-45-mk1-rt-angles.svg)
+data](/examples/16in-45-mk1-rt-angles.png)
 
 and for impact velocity:
 
 ![Range vs Impact Velocity, source vs calculated
-data](/examples/16in-45-mk1-rt-iv.svg)
+data](/examples/16in-45-mk1-rt-iv.png)
 
 The calculated data matches the source data very well across the full range,
 with the biggest discrepancies being in the impact velocity. The impact

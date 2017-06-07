@@ -58,9 +58,9 @@ factor as 1.0 and see how it goes.
 To model a single shot the program should be run with the command `single`:
 
 ```
-$ ./meb single -h
+$ ./meb.py single -h
 
-usage: meb single [-h] -l DEPARTURE_ANGLE [-t] -f FORM_FACTOR -v MV -m MASS -c
+usage: meb.py single [-h] -l DEPARTURE_ANGLE [-t] -f FORM_FACTOR -v MV -m MASS -c
                   CALIBER [-a ALTITUDE] [-I TIMESTEP]
                   [--air-density-factor AIR_DENSITY_FACTOR]
                   [--density-function {US,UK,ICAO}]
@@ -97,7 +97,7 @@ optional arguments:
 Putting the values we determined above onto the command line gives this:
 
 ```
-$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py single -m 952.544 -c 406.4 -v 792.48 \
         -l 45.2483 -f 1.0 --drag-function KD6
 ```
 
@@ -126,7 +126,7 @@ that the modelled drag was slightly too high. This can be adjusted by decreasing
 the form factor, for example to 0.9.
 
 ```
-$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py single -m 952.544 -c 406.4 -v 792.48 \
     -l 45.2483 -f 0.9 --drag-function KD6
 
 Projectile Configuration:
@@ -156,9 +156,9 @@ narrowing it down to whatever precision we desired. However, the program
 supports doing this automatically, using the `find-ff` command:
 
 ```
-$ ./meb find-ff -h
+$ ./meb.py find-ff -h
 
-usage: meb find-ff [-h] [-l DEPARTURE_ANGLE] [-f FORM_FACTOR] [--shot A,R]
+usage: meb.py find-ff [-h] [-l DEPARTURE_ANGLE] [-f FORM_FACTOR] [--shot A,R]
                    [--target-range TARGET_RANGE] [--tolerance TOLERANCE] -v MV
                    -m MASS -c CALIBER [-a ALTITUDE] [-I TIMESTEP]
                    [--air-density-factor AIR_DENSITY_FACTOR]
@@ -205,7 +205,7 @@ Using the previously specified shot, with a target range of 36210m at a
 departure angle of 45.2483 degrees:
 
 ```
-$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 \
          --drag-function KD6 --target-range 36210 -l 45.2483
 
 Converged after 7 iterations
@@ -225,7 +225,7 @@ To verify that this is correct we can re-run the single shot mode that we tried
 before, using the new value for the form factor:
 
 ```
-$ ./meb single -m 952.544 -c 406.4 -v 792.48
+$ ./meb.py single -m 952.544 -c 406.4 -v 792.48
         -l 45.2483 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
@@ -272,7 +272,7 @@ Taking the first row in our sample, converted to metric:
 Modeling this shot gives us:
 
 ```
-$ ./meb single -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py single -m 952.544 -c 406.4 -v 792.48 \
         -l 35.4617 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
@@ -299,7 +299,7 @@ performance. We can go back and run the find-ff command again with this shot as
 the target data to quantify this match:
 
 ```
-$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 \
 		 --drag-function KD6 --target-range 33832.8 -l 35.4617
 
 Converged after 8 iterations
@@ -328,9 +328,9 @@ metric gives a range from 33832.8m to 36210m in 91.44m increments. The range
 table can be replicated using the `range-table` command:
 
 ```
-$ ./meb range-table --help
+$ ./meb.py range-table --help
 
-usage: meb range-table [-h] [-f FORM_FACTOR] [--increment INCREMENT]
+usage: meb.py range-table [-h] [-f FORM_FACTOR] [--increment INCREMENT]
                        [--start START] [--end END] [-F FF,A] -v MV -m MASS -c
                        CALIBER [-a ALTITUDE] [-I TIMESTEP]
                        [--air-density-factor AIR_DENSITY_FACTOR]
@@ -372,7 +372,7 @@ The projectile details stay the same, and we simply specify the start, end and
 increment:
 
 ```
-$ ./meb range-table -m 952.544 -c 406.4 -v 792.48 \
+$ ./meb.py range-table -m 952.544 -c 406.4 -v 792.48 \
         -f 0.996695 --drag-function KD6 --start 33832.8 --end 36210 \
         --increment 91.44
 
@@ -437,7 +437,7 @@ intermediate ranges. We can determine the form factor for a number of different
 known scenarios at once using the `--shot` option:
 
 ```
-$ ./meb find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
         --shot 35.4617,33832.8 \
         --shot 45.2483,36210
 
@@ -461,7 +461,7 @@ interpolate between the available data points to determine the form factor for
 a given departure angle:
 
 ```
-$ ./meb range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+$ ./meb.py range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
         --start 33832.8 --end 36210 --increment 91.44 \
         -F 35.4617,0.996803 \
         -F 45.2483,0.996695

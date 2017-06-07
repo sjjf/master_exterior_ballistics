@@ -29,6 +29,29 @@ non-commercial applications.
 The Python reimplementation is distributed under the terms of the GNU General
 Public License, Version 3 or later.
 
+# Running the Program
+
+This is currently a pure command line program, and requires the Python 2.7
+runtime to be installed. Python can be downloaded from
+https://www.python.org/downloads/ for a wide range of platforms, and the
+program should run on any platform that Python runs on.
+
+Once Python has been installed the program can be run from within a command
+line window (on Unix based systems this can be done using a terminal program
+like xterm, on Windows this can be done using the command window or a
+powershell window).
+
+The program itself is the meb.py file, and should be run from the same
+directory as the file since it loads data from the drag_functions directory.
+The simplest example of running the program is as follows:
+
+```
+meb.py --help
+```
+
+which will print out the basic help text. From there it is strongly recommended
+that you read the documentation, in particular the [examples](/examples/).
+
 # Basic Theory of Operation
 
 At its core this code calculates the trajectory of a projectile by applying
