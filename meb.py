@@ -73,18 +73,19 @@ def interpolate(a, x1, x2, y1, y2):
 
 class Projectile(object):
 
-    I = 0.1
-    ALT = None
-    M = None
-    Cal = None
-    MV = None
-    L = None
+    timestep = 0.1
+    altitude = None
+    mass = None
+    caliber = None
+    mv = None
+    departure_angle = None
+    air_density_factor = None
     Traj = []
     Max_Range = None
-    mach = []
-    kd = []
-    departure_angles = []
-    form_factors = []
+    mach = None
+    kd = None
+    departure_angles = None
+    form_factors = None
     drag_function = None
     drag_function_file = None
 
@@ -93,24 +94,24 @@ class Projectile(object):
         self.load_drag_function(args)
         self.load_form_factors(args)
 
-        self.ALT = args.altitude
-        self.L = 0.0
+        self.altitude = args.altitude
+        self.departure_angle = 0.0
         if args.departure_angle:
-            self.L = math.radians(args.departure_angle)
-        self.MV = args.mv
-        self.Cal = args.caliber
-        self.AD = args.air_density_factor
-        self.M = args.mass
+            self.departure_angle = math.radians(args.departure_angle)
+        self.mv = args.mv
+        self.caliber = args.caliber
+        self.air_density_factor = args.air_density_factor
+        self.mass = args.mass
         if "timestep" in args:
-            self.I = args.timestep
+            self.timestep = args.timestep
 
     # write out an ini-formatted config file for this projectile
     # If filename is not given, write to stdout
     def to_config(self, filename=None):
         cfg = cfgparser()
         cfg.add_section("projectile")
-        cfg.set("projectile", "mass", repr(self.M))
-        cfg.set("projectile", "caliber", repr(self.Cal))
+        cfg.set("projectile", "mass", repr(self.mass))
+        cfg.set("projectile", "caliber", repr(self.caliber))
         if self.drag_function_file:
             cfg.set("projectile", "drag_function_file", self.drag_function_file)
         else:
@@ -122,13 +123,13 @@ class Projectile(object):
             cfg.set("form_factor", repr(math.degrees(da)), repr(ff))
 
         cfg.add_section("initial_conditions")
-        cfg.set("initial_conditions", "alt", repr(self.ALT))
-        cfg.set("initial_conditions", "mv", repr(self.MV))
-        cfg.set("initial_conditions", "l", repr(math.degrees(self.L)))
-        cfg.set("initial_conditions", "ad", repr(self.AD))
+        cfg.set("initial_conditions", "altitude", repr(self.altitude))
+        cfg.set("initial_conditions", "mv", repr(self.mv))
+        cfg.set("initial_conditions", "departure_angle", repr(math.degrees(self.departure_angle)))
+        cfg.set("initial_conditions", "air_density_factor", repr(self.air_density_factor))
 
         cfg.add_section("simulation")
-        cfg.set("simulation", "timestep", repr(self.I))
+        cfg.set("simulation", "timestep", repr(self.timestep))
 
         if filename:
             with open(filename, "w") as outfile:
@@ -138,14 +139,14 @@ class Projectile(object):
 
     # these are the only things that change during the lifetime of the
     # projectile object
-    def set_alt(self, alt):
-        self.ALT = alt
+    def set_altitude(self, alt):
+        self.altitude = alt
 
     def set_departure_angle(self, l):
-        self.L = l
+        self.departute_angle = l
 
     def set_mv(self, mv):
-        self.MV = mv
+        self.mv = mv
 
     def set_atmosphere(self, args):
         self.atmosphere = None
@@ -175,14 +176,16 @@ class Projectile(object):
     def _load_drag_function(self, df_filename):
         try:
             with open(df_filename) as df:
-                self.mach = []
-                self.kd = []
+                mach = []
+                kd = []
                 for line in df.readlines():
                     line = line.strip()
                     if line != "":
                         (m, k) = line.split(',', 2)
-                        self.mach.append(float(m))
-                        self.kd.append(float(k))
+                        mach.append(float(m))
+                        kd.append(float(k))
+                self.mach = mach
+                self.kd = kd
         except IOError as e:
             print "Loading drag function failed:", e
             sys.exit(1)
@@ -213,22 +216,33 @@ class Projectile(object):
         return t
 
     def load_form_factors(self, args):
-        tda = []
-        tff = []
-        if not args.F or len(args.F) == 0:
-            tda.append(math.radians(args.departure_angle))
-            tff.append(args.form_factor)
+        # in some cases F may not be in args at all - in that case, we know
+        # that form_factor won't be in args either, so we can just set an empty
+        # value
+        if "F" not in args:
+            self.departure_angles = []
+            self.form_factors = []
+            return
+        # in other cases F may be in args, but with no meaningful data - in
+        # that case we pull in the form_factor that should be in args
+        elif not args.F or len(args.F) == 0:
+            self.departure_angles = [math.radians(args.departure_angle)]
+            self.form_factors = [args.form_factor]
+            return
+        # and all that's left is args.F being a non-empty array
         else:
+            tda = []
+            tff = []
             for ff in args.F:
                 (da, ff) = ff.split(',')
                 da = math.radians(float(da))
                 ff = float(ff)
                 tda.append(da)
                 tff.append(ff)
-        # these need to be sorted
-        self.departure_angles = tda
-        self.form_factors = tff
-        self.sort_form_factors()
+            # these need to be sorted
+            self.departure_angles = tda
+            self.form_factors = tff
+            self.sort_form_factors()
 
     def clear_form_factors(self):
         self.departure_angles = []
@@ -240,6 +254,8 @@ class Projectile(object):
         self.sort_form_factors()
 
     def sort_form_factors(self):
+        if len(self.departure_angles) == 0:
+            return
         z = zip(self.departure_angles, self.form_factors)
         z.sort(key=lambda k: k[0])
         tda, tff = zip(*z)
@@ -269,8 +285,8 @@ class Projectile(object):
     # somewhere else that makes it all work, because it does seem to work . . .
     def ballistic_coefficient(self, FF):
         # note that this needs to be in cm rather than mm
-        d = self.Cal/10.0
-        return self.M/(FF*self.AD*pow(d, 2))
+        d = self.caliber/10.0
+        return self.mass/(FF*self.air_density_factor*pow(d, 2))
 
     def retardation(self, alt, v, l, C):
         d = self.atmosphere(alt)
@@ -286,8 +302,8 @@ class Projectile(object):
         (H1, J1) = self.retardation(alt, v, l, C)
         H2 = (h0 + H1)/2.0
         J2 = (j0 + J1)/2.0
-        X2 = x0 - (H2*self.I)
-        Y2 = y0 - (J2*self.I)
+        X2 = x0 - (H2*self.timestep)
+        Y2 = y0 - (J2*self.timestep)
         V2 = math.sqrt(pow(X2, 2) + pow(Y2, 2))
         L2 = math.atan(Y2/X2)
         return (X2, Y2, V2, L2)
@@ -296,20 +312,20 @@ class Projectile(object):
         X0 = v*math.cos(l)
         Y0 = v*math.sin(l)
         (H0, J0) = self.retardation(alt, v, l, C)
-        X1 = X0 - (H0 * self.I)
-        Y1 = Y0 - (J0 * self.I)
+        X1 = X0 - (H0 * self.timestep)
+        Y1 = Y0 - (J0 * self.timestep)
         V1 = math.sqrt(pow(X1, 2) + pow(Y1, 2))
         L1 = math.atan(Y1/X1)
         MY1 = (Y0 + Y1)/2.0
-        A1 = MY1 * self.I
+        A1 = MY1 * self.timestep
         (X2, Y2, V2, L2) = self.iterate_estimate(alt + A1, V1, L1, C, X0, Y0, H0, J0)
         MY2 = (Y0 + Y2)/2.0
-        A2 = MY2 * self.I
+        A2 = MY2 * self.timestep
         (X3, Y3, V3, L3) = self.iterate_estimate(alt + A2, V2, L2, C, X0, Y0, H0, J0)
         MY3 = (Y0 + Y3)/2.0
         MX3 = (X0 + X3)/2.0
-        FH = MX3 * self.I
-        FV = MY3 * self.I
+        FH = MX3 * self.timestep
+        FV = MY3 * self.timestep
         return (FH, FV, V3, L3)
 
     # for Reasons this takes an argument rather than using the copy we own
@@ -331,13 +347,13 @@ class Projectile(object):
 
     def one_shot(self, l=None):
         if not l:
-            l = self.L
+            l = self.departure_angle
         ff = self.get_FF(l)
         C = self.ballistic_coefficient(ff)
         tt = 0.0
         rg = 0.0
-        alt = self.ALT
-        mv = self.MV
+        alt = self.altitude
+        mv = self.mv
         self.Traj.append((alt, tt, rg, mv, l))
         while alt >= 0.0:
             (FH, FV, V, L) = self.step(alt, mv, l, C)
@@ -350,7 +366,7 @@ class Projectile(object):
             alt += FV
             mv = V
             l = L
-            tt += self.I
+            tt += self.timestep
             self.Traj.append((alt, tt, rg, mv, l))
         tt = interpolate(0, alt, alt1, tt, tt1)
         rg = interpolate(0, alt, alt1, rg, rg1)
@@ -373,8 +389,8 @@ class Projectile(object):
     # replace the edge of the window that corresponds to the lowest range with a
     # point half-way between the old edge and the mid point.
     def max_range(self):
-        alt = self.ALT
-        mv = self.MV
+        alt = self.altitude
+        mv = self.mv
         tolerance = math.radians(0.05)
         low = math.radians(0.0)
         high = math.radians(90.0)
@@ -417,11 +433,11 @@ class Projectile(object):
                     mv=None,
                     l=None):
         if not alt:
-            alt = self.ALT
+            alt = self.altitude
         if not mv:
-            mv = self.MV
+            mv = self.mv
         if not l:
-            l = self.L
+            l = self.departure_angle
         high = math.radians(90.0)
         if self.Max_Range:
             (rg_max, da_max) = self.Max_Range
@@ -472,8 +488,8 @@ class Projectile(object):
 
     def print_configuration(self):
         print "Projectile Configuration:"
-        print " Mass: %.3fkg" % (self.M)
-        print " Caliber: %.3fmm" % (self.Cal)
+        print " Mass: %.3fkg" % (self.mass)
+        print " Caliber: %.3fmm" % (self.caliber)
         # we want to list something meaningful here, if at all possible
         if len(self.departure_angles) == 1:
             print " Form Factor: %.4f" % (self.form_factors[0])
@@ -482,7 +498,7 @@ class Projectile(object):
             i = 0
             while i < len(self.departure_angles):
                 print "  %.4fdeg: %.6f" % (math.degrees(self.departure_angles[i]),
-                                       self.form_factors[i])
+                                           self.form_factors[i])
                 i += 1
         if self.drag_function_file:
             print " Drag Function from file %s" % (self.drag_function_file)
@@ -496,9 +512,9 @@ class Projectile(object):
 
     def print_initial_conditions(self):
         print "Initial Conditions:"
-        print " Velocity: %.3fm/s" % (self.MV)
-        print " Departure Angle: %.4fdeg" % (self.L)
-        print " Air Density Factor: %.6f" % (self.AD)
+        print " Velocity: %.3fm/s" % (self.mv)
+        print " Departure Angle: %.4fdeg" % (self.departure_angle)
+        print " Air Density Factor: %.6f" % (self.air_density_factor)
 
 
 def single_run(args):
@@ -544,8 +560,8 @@ def match_range(args):
     print ""
     print "Range %.1fm matched at the following conditions:" % (target_range)
     print " Range: %.1fm" % (rg)
-    print " Initial Velocity: %.4fm/s" % (p.MV)
-    print " Departure Angle: %.4fdeg" % (math.degrees(p.L))
+    print " Initial Velocity: %.4fm/s" % (p.mv)
+    print " Departure Angle: %.4fdeg" % (math.degrees(p.departure_angle))
     print " Time of flight: %.2fs" % (tt)
     print " Impact Angle: %.4fdeg" % (math.degrees(il))
     print " Impact Velocity: %.2fm/s" % (iv)
@@ -565,7 +581,7 @@ def match_form_factor(args):
             (ff, l, rg, count) = p.match_form_factor(da, tr, tolerance)
             shots.append((ff, l, rg, count))
     else:
-        (ff, l, rg, count) = p.match_form_factor(p.L, target_range, tolerance)
+        (ff, l, rg, count) = p.match_form_factor(p.departure_angle, target_range, tolerance)
         shots.append((ff, l, rg, count))
         print "Converged after %d iterations" % (count)
     # the form factor currently cached is meaningless at the moment, so clear
@@ -586,8 +602,8 @@ def range_table(args):
     end = args.end
     print "Range Table"
     p.print_configuration()
-    print "Initial velocity: %.4fm/s" % (p.MV)
-    print "Air Density Factor: %.4f" % (p.AD)
+    print "Initial velocity: %.4fm/s" % (p.mv)
+    print "Air Density Factor: %.4f" % (p.air_density_factor)
     print "Range increments: %.1fm" % (increment)
     print ""
     print " Range Departure Angle of Time of Striking"
@@ -622,8 +638,8 @@ def range_table_angle(args):
     (rg_max, da_max) = p.max_range()
     print "Range Table"
     p.print_configuration()
-    print "Initial velocity: %.4fm/s" % (p.MV)
-    print "Air Density Factor: %.4f" % (p.AD)
+    print "Initial velocity: %.4fm/s" % (p.mv)
+    print "Air Density Factor: %.4f" % (p.air_density_factor)
     print "Departure Angle increments: %.1fdeg" % (math.degrees(increment))
     print ""
     print " Range Departure Angle of Time of Striking"
