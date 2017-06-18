@@ -781,7 +781,7 @@ def range_table_angle_args(subparser):
     add_form_factors(parser)
     add_conditions_args(parser)
     add_common_args(parser)
-    parser.set_defaults(func=range_table,
+    parser.set_defaults(func=range_table_angle,
         print_trajectory=False,
         departure_angle=45.0)
 
