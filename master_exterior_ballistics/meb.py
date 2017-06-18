@@ -31,6 +31,7 @@ import math
 from ConfigParser import SafeConfigParser as cfgparser
 from os import listdir
 from os import path
+import pkg_resources
 import sys
 
 # To make this usable outside the immediate context I'm going to move most
@@ -170,39 +171,43 @@ class Projectile(object):
         self.drag_function_file = None
         if args.drag_function_file:
             self.drag_function_file = args.drag_function_file
-            self._load_drag_function(args.drag_function_file)
+            try:
+                with open(self.drag_function_file) as df:
+                    self._load_drag_function(df)
+            except IOError as e:
+                print "Could not load drag function from file ",
+                print "%s: %s" % (self.drag_function_file, e)
+                sys.exit(1)
         else:
-            dff = path.join("drag_functions", "%s.conf" % (args.drag_function))
             self.drag_function = args.drag_function
-            self._load_drag_function(dff)
+            df_resource = "drag_functions/%s.conf" % (self.drag_function)
+            df = pkg_resources.resource_stream('master_exterior_ballistics',
+                                               df_resource)
+            self._load_drag_function(df)
 
-    def _load_drag_function(self, df_filename):
-        try:
-            with open(df_filename) as df:
-                mach = []
-                kd = []
-                for line in df.readlines():
-                    line = line.strip()
-                    if line != "":
-                        (m, k) = line.split(',', 2)
-                        mach.append(float(m))
-                        kd.append(float(k))
-                self.mach = mach
-                self.kd = kd
-        except IOError as e:
-            print "Loading drag function failed:", e
-            sys.exit(1)
+    def _load_drag_function(self, df):
+        mach = []
+        kd = []
+        for line in df.readlines():
+            line = line.strip()
+            if line != "":
+                (m, k) = line.split(',', 2)
+                mach.append(float(m))
+                kd.append(float(k))
+        self.mach = mach
+        self.kd = kd
 
     # this is a class method so that we can access it without needing an object
     @classmethod
     def get_drag_functions(cls):
         try:
-            dfs = listdir('drag_functions')
+            dfs = pkg_resources.resource_listdir('master_exterior_ballistics',
+                                                 'drag_functions')
             dfs = [path.basename(path.splitext(t)[0]) for t in dfs]
             dfs.sort()
             return dfs
         except OSError as e:
-            print "Failed to open drag function directory: %s" % (e)
+            print "Failed to find drag function resources: %s" % (e)
 
     def get_KD(self, v, alt):
         m = v/(CS - (0.004*alt))

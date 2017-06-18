@@ -4,18 +4,18 @@ echo -e "\nVery basic functionality tests\n"
 
 echo -e "\nSingle\n-----------------------------------------------\n"
 
-./meb.py single -m 952.544 -c 406.4 -v 792.48 -l 35.4617 \
+meb single -m 952.544 -c 406.4 -v 792.48 -l 35.4617 \
     -f 0.996695 --drag-function KD6
 
 echo -e "\nMatch Range\n-----------------------------------------------\n"
 
-./meb.py match-range -v 769.62 -m 928.927 -c 406.4 \
+meb match-range -v 769.62 -m 928.927 -c 406.4 \
     --drag-function KD6 --target-range 15000 \
     -F 15,0.87 -F 20,0.9
 
 echo -e "\nFind Form Factors\n-----------------------------------------------\n"
 
-./meb.py find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD2 \
+meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD2 \
     --density-function UK \
     --shot 2.3,4572 \
     --shot 5.1,9144 \
@@ -28,7 +28,7 @@ echo -e "\nFind Form Factors\n-----------------------------------------------\n"
 
 echo -e "\nRange Table (range increment)\n-----------------------------------------------\n"
 
-./meb.py range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
+meb range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
     -F 2.3,0.709893 \
     -F 5.1,0.923971 \
@@ -44,7 +44,7 @@ echo -e "\nRange Table (range increment)\n--------------------------------------
 
 echo -e "\nRange Table (angle increment)\n-----------------------------------------------\n"
 
-./meb.py range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
+meb range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
     -F 2.3,0.709893 \
     -F 5.1,0.923971 \
@@ -60,7 +60,7 @@ echo -e "\nRange Table (angle increment)\n--------------------------------------
 
 echo -e "\nMax Range\n-----------------------------------------------\n"
 
-./meb.py max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
+meb max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
     -F 2.3,0.709893 \
     -F 5.1,0.923971 \

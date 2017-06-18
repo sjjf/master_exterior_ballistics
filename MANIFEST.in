@@ -1,0 +1,7 @@
+include README.md
+include TODO
+include LICENSE.txt
+
+recursive-include master_exterior_ballistics/drag_functions *.conf
+recursive-include * *.md
+recursive-include BASIC *.basic
