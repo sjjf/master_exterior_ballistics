@@ -80,6 +80,7 @@ class Projectile(object):
     mv = None
     departure_angle = None
     air_density_factor = None
+    show_trajectory = None
     Traj = []
     Max_Range = None
     mach = None
@@ -104,6 +105,8 @@ class Projectile(object):
         self.mass = args.mass
         if "timestep" in args:
             self.timestep = args.timestep
+        if args.show_trajectory:
+            self.show_trajectory = True
 
     # write out an ini-formatted config file for this projectile
     # If filename is not given, write to stdout
@@ -277,7 +280,6 @@ class Projectile(object):
         ff2 = self.form_factors[i]
         return interpolate(da, da1, da2, ff1, ff2)
 
-
     # this doesn't fit with the definition from the paper, but the number we
     # get from the code is less than 1 - I'm guessing it's just a question of
     # units (the calculation in the paper would result in units of kg/mm^2,
@@ -329,7 +331,11 @@ class Projectile(object):
         return (FH, FV, V3, L3)
 
     # for Reasons this takes an argument rather than using the copy we own
-    def print_trajectory(self, trajectory):
+    def print_trajectory(self, trajectory=None):
+        if not self.show_trajectory:
+            return
+        if not trajectory:
+            trajectory = self.Traj
         print "Time Range Height Angle Vel"
         if len(trajectory) < 1:
             return
@@ -524,8 +530,7 @@ def single_run(args):
     print ""
 
     (tt, rg, iv, il) = p.one_shot()
-    if args.print_trajectory:
-        p.print_trajectory(Traj)
+    p.print_trajectory()
     print "Final conditions:"
     print "Time of flight: %.2fs" % (tt)
     print "Range: %.2fm" % (rg)
@@ -615,7 +620,7 @@ def range_table(args):
     while True:
         try:
             (tt, rg, iv, il, l) = p.match_range(target_range,
-                                               tolerance)
+                                                tolerance)
             print "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f" % (
                     rg,
                     math.degrees(l),
@@ -656,49 +661,155 @@ def range_table_angle(args):
                                                       iv)
         l += increment
 
-def add_common_args(parser):
-    parser.add_argument('--config',
-        action='store',
-        required=False,
-        help='Config file')
-    parser.add_argument('--write-config',
-        action='store',
-        required=False,
-        help='Write config from the command line to a file')
-    parser.add_argument('-v', '--mv',
-        action='store',
-        required=True,
-        type=float,
-        help='Initial velocity')
-    parser.add_argument('-m', '--mass',
+# the argument handling is crazy complicated and hard to work with, and it's
+# not conducive to using any of the setuptools wrapper mechanisms, so I'm going
+# to rework it. The core of the reworking is to treat each of the commands as a
+# separate entity with responsibility for setting up its own command line
+# parser. There will be a number of functions that add common arguments, and a
+# function for each command that pulls it all together in a subparser.
+
+def single_args(subparser):
+    parser = subparser.add_parser('single',
+        description="Simulate a single shot",
+        help="Single shot mode")
+    g = parser.add_argument_group('shot specifics')
+    g.add_argument('-l', '--departure-angle',
         action='store',
         required=True,
         type=float,
-        help='Projectile mass')
-    parser.add_argument('-c', '--caliber',
-        action='store',
-        required=True,
-        type=float,
-        help='Projectile caliber')
-    parser.add_argument('-a', '--altitude',
+        help="Departure Angle")
+    g.add_argument('-t', '--print-trajectory', '--show-trajectory',
+        dest='show_trajectory',
+        action='store_true',
+        required=False,
+        default=False,
+        help="Print projectile trajectory")
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=single_run)
+
+def match_range_args(subparser):
+    parser = subparser.add_parser('match-range',
+        description="Match the target range by adjusting departure angle",
+        help="Find the departure angle to achieve the specified target range")
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_match_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=match_range,
+        print_trajectory=False)
+
+def find_ff_args(subparser):
+    parser = subparser.add_parser('find-ff',
+        description="Match the shot(s) specified by adjusting the form fator",
+        help="Find the form factor to achieve the specified target range")
+    add_projectile_args(parser)
+    add_conditions_args(parser)
+    g = parser.add_argument_group('match multiple shots')
+    g.add_argument('--shot',
+        action='append',
+        required=False,
+        metavar='A,R',
+        help=(
+            'Set of <angle,range> tuples - may be used more than once, with '
+            'each tuple being simulated'
+        ))
+    add_match_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=match_form_factor,
+        form_factor=1.0,
+        print_trajectory=False)
+
+def range_table_args(subparser):
+    parser = subparser.add_parser('range-table',
+        description="Calculate a range table based on range increments",
+        help="Calculate a range table based on range increments")
+    g = parser.add_argument_group('range table options')
+    g.add_argument('--increment',
         action='store',
         required=False,
         type=float,
-        default=0.01,
-        help='Initial altitude (default 0)')
-    parser.add_argument('-I', '--timestep',
+        default=100.0,
+        help='Range steps for range table')
+    g.add_argument('--start',
         action='store',
         required=False,
         type=float,
-        default=0.1,
-        help="Simulation timestep")
-    parser.add_argument('--air-density-factor',
+        default=100.0,
+        help='Starting range')
+    g.add_argument('--end',
+        action='store',
+        required=False,
+        type=float,
+        default=100000.0,
+        help='End range')
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=range_table,
+        print_trajectory=False,
+        departure_angle=45.0)
+
+def range_table_angle_args(subparser):
+    parser = subparser.add_parser('range-table-angle',
+        description="Calculate a range table based on departure angle increments",
+        help="Calculate a range table based on departure angle")
+    g = parser.add_argument_group('range table options')
+    g.add_argument('--increment',
         action='store',
         required=False,
         type=float,
         default=1.0,
-        help='Air density adjustment factor (default 1.0)')
-    parser.add_argument('--density-function',
+        help='Departure angle steps for range table')
+    g.add_argument('--start',
+        action='store',
+        required=False,
+        type=float,
+        default=1.0,
+        help='Starting departure angle')
+    g.add_argument('--end',
+        action='store',
+        required=False,
+        type=float,
+        default=50.0,
+        help='End departure angle')
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=range_table,
+        print_trajectory=False,
+        departure_angle=45.0)
+
+def max_range_args(subparser):
+    parser = subparser.add_parser('max-range',
+        description="Estimate the maximum range for a given projectile configuration",
+        help="Find the maximum range for a given projectile configuration")
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=max_range,
+        print_trajectory=False,
+        departure_angle=45.0)
+
+def add_projectile_args(parser):
+    g = parser.add_argument_group('projectile')
+    g.add_argument('-m', '--mass',
+        action='store',
+        required=True,
+        type=float,
+        help='Projectile mass')
+    g.add_argument('-c', '--caliber',
+        action='store',
+        required=True,
+        type=float,
+        help='Projectile caliber')
+    g.add_argument('--density-function',
         action='store',
         required=False,
         choices=['US', 'UK', 'ICAO'],
@@ -707,35 +818,80 @@ def add_common_args(parser):
             'Density Function: US Pre-1945 std, British std,'
             'ICAO std (default US)'
         ))
-    g = parser.add_mutually_exclusive_group(required=True)
-    g.add_argument('--drag-function',
+    gme = g.add_mutually_exclusive_group(required=True)
+    gme.add_argument('--drag-function',
         action='store',
         choices=Projectile.get_drag_functions(),
         default="KD8",
         help="Drag function to use (default KD8)")
-    g.add_argument('--drag-function-file',
+    gme.add_argument('--drag-function-file',
         action='store',
         help="File to read drag function data from")
 
-def add_match_args(parser):
-    parser.add_argument('--target-range',
+def add_conditions_args(parser):
+    g = parser.add_argument_group('conditions')
+    g.add_argument('-v', '--mv',
         action='store',
+        required=True,
         type=float,
-        help='Target range')
-    parser.add_argument('--tolerance',
+        help='Initial velocity')
+    g.add_argument('-a', '--altitude',
+        action='store',
+        required=False,
+        type=float,
+        default=0.0001,
+        help='Initial altitude (default 0)')
+    g.add_argument('--air-density-factor',
         action='store',
         required=False,
         type=float,
         default=1.0,
-        help='Convergence tolerance')
+        help='Air density adjustment factor (default 1.0)')
+
+
+def add_common_args(parser):
+    g = parser.add_argument_group('common options')
+    g.add_argument('--config',
+        action='store',
+        required=False,
+        help='Config file')
+    g.add_argument('--write-config',
+        action='store',
+        required=False,
+        help='Write config from the command line to a file')
+    g.add_argument('-I', '--timestep',
+        action='store',
+        required=False,
+        type=float,
+        default=0.1,
+        help="Simulation timestep")
+    g.add_argument('--tolerance',
+        action='store',
+        required=False,
+        type=float,
+        default=1.0,
+        help='Convergance tolerance')
+
+def add_match_args(parser):
+    g = parser.add_argument_group('match single shot')
+    g.add_argument('-l', '--departure-angle',
+        action='store',
+        type=float,
+        default=45.0,
+        help="Departure Angle")
+    g.add_argument('--target-range',
+        action='store',
+        type=float,
+        help='Target range')
 
 def add_form_factors(parser, required=True):
-    g = parser.add_mutually_exclusive_group(required=required)
-    g.add_argument('-f', '--form-factor',
+    g = parser.add_argument_group('form factors')
+    gme = g.add_mutually_exclusive_group(required=required)
+    gme.add_argument('-f', '--form-factor',
         action='store',
         type=float,
         help='Projectile form factor')
-    g.add_argument('-F',
+    gme.add_argument('-F',
         action='append',
         metavar='FF,A',
         help=(
@@ -746,134 +902,24 @@ def add_form_factors(parser, required=True):
 
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    # some global defaults . . .
+    parser.set_defaults(
+        show_trajectory=False
+    )
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
 
-    parser_single = subparsers.add_parser('single',
-        description="Simulate a single shot",
-        help="Single shot mode")
-    parser_single.add_argument('-l', '--departure-angle',
-        action='store',
-        required=True,
-        type=float,
-        help="Departure Angle")
-    parser_single.add_argument('-t', '--print-trajectory',
-        action='store_true',
-        required=False,
-        default=False,
-        help="Print projectile trajectory")
-    add_form_factors(parser_single)
-    add_common_args(parser_single)
-    parser_single.set_defaults(func=single_run)
-
-    parser_mr = subparsers.add_parser('match-range',
-        description="Match the target range by adjusting departure angle",
-        help="Find the departure angle to achieve the specified target range")
-    parser_mr.add_argument('-l', '--departure-angle',
-        action='store',
-        required=False,
-        type=float,
-        default=45.0,
-        help="Initial value for departure angle")
-    add_form_factors(parser_mr)
-    add_match_args(parser_mr)
-    add_common_args(parser_mr)
-    parser_mr.set_defaults(func=match_range,
-        print_trajectory=False)
-
-    parser_ff = subparsers.add_parser('find-ff',
-        description="Match the shot(s) specified by adjusting the form fator",
-        help="Find the form factor to achieve the specified target range")
-    parser_ff.add_argument('-l', '--departure-angle',
-        action='store',
-        type=float,
-        default=45.0,
-        help="Departure Angle")
-    parser_ff.add_argument('--shot',
-        action='append',
-        required=False,
-        metavar='A,R',
-        help=(
-            'Set of <angle,range> tuples - may be used more than once, with '
-            'each tuple being simulated'
-        ))
-    add_match_args(parser_ff)
-    add_common_args(parser_ff)
-    parser_ff.set_defaults(func=match_form_factor,
-        form_factor=1.0,
-        print_trajectory=False)
-
-    parser_rt = subparsers.add_parser('range-table',
-        description="Calculate a range table based on range increments",
-        help="Calculate a range table based on range increments")
-    parser_rt.add_argument('--increment',
-        action='store',
-        required=False,
-        type=float,
-        default=100.0,
-        help='Range steps for range table')
-    parser_rt.add_argument('--start',
-        action='store',
-        required=False,
-        type=float,
-        default=100.0,
-        help='Starting range')
-    parser_rt.add_argument('--end',
-        action='store',
-        required=False,
-        type=float,
-        default=100000.0,
-        help='End range')
-    add_form_factors(parser_rt)
-    add_common_args(parser_rt)
-    parser_rt.set_defaults(func=range_table,
-        print_trajectory=False,
-        departure_angle=45.0)
-
-    parser_rta = subparsers.add_parser('range-table-angle',
-        description="Calculate a range table based on departure angle increments",
-        help="Calculate a range table based on departure angle")
-    parser_rta.add_argument('--increment',
-        action='store',
-        required=False,
-        type=float,
-        default=1.0,
-        help='Departure angle steps for range table')
-    parser_rta.add_argument('--start',
-        action='store',
-        required=False,
-        type=float,
-        default=1.0,
-        help='Starting departure angle')
-    parser_rta.add_argument('--end',
-        action='store',
-        required=False,
-        type=float,
-        default=50.0,
-        help='End departure angle')
-    add_form_factors(parser_rta)
-    add_common_args(parser_rta)
-    parser_rta.set_defaults(func=range_table_angle,
-        print_trajectory=False,
-        departure_angle=45.0)
-
-    parser_mar = subparsers.add_parser('max-range',
-        description="Estimate the maximum range for a given projectile configuration",
-        help="Find the maximum range for a given projectile configuration")
-    add_form_factors(parser_mar)
-    add_common_args(parser_mar)
-    parser_mar.set_defaults(func=max_range,
-        print_trajectory=False,
-        departure_angle=45.0)
+    single_args(subparsers)
+    match_range_args(subparsers)
+    find_ff_args(subparsers)
+    range_table_args(subparsers)
+    range_table_angle_args(subparsers)
+    max_range_args(subparsers)
 
     return parser.parse_args()
 
 def main():
     args = parse_args()
-
-    if args.print_trajectory:
-        global print_traj
-        print_traj = True
 
     if args.write_config:
         p = Projectile(args)
