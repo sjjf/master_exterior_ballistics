@@ -75,6 +75,12 @@ def interpolate(a, x1, x2, y1, y2):
 def str2bool(v):
     return v.lower() in ['yes', 'true', 'y', 't', '1']
 
+def str2rad(v):
+    return math.radians(float(v))
+
+def rad2str(v):
+    return str(math.degrees(v))
+
 class Projectile(object):
 
     timestep = 0.1
@@ -112,22 +118,26 @@ class Projectile(object):
     _defaults = {
         'timestep': 0.1,
         'altitude': 0.0001,
-        'departure_angle': 45.0,
+        'departure_angle': math.radians(45.0),
         'air_density_factor': 1.0,
         'show_trajectory': False,
         'density_function': 'US',
         'drag_function': 'KD8',
     }
 
-    _wrapper = {
+    _wrapper_in = {
         'mass': float,
         'caliber': float,
         'mv': float,
         'timestep': float,
         'altitude': float,
-        'departure_angle': float,
+        'departure_angle': str2rad,
         'air_density_factor': float,
         'show_trajectory': str2bool,
+    }
+
+    _wrapper_out = {
+        'departure_angle': rad2str,
     }
 
     def __init__(self, args):
@@ -231,7 +241,7 @@ class Projectile(object):
             else:
                 for (attr, value) in cfg.items(section):
                     try:
-                        w = self._wrapper[attr]
+                        w = self._wrapper_in[attr]
                         value = w(value)
                     except KeyError:
                         pass
@@ -753,8 +763,13 @@ def match_form_factor(args):
             print "converged after %d iterations" % (count)
     print ""
     print "Form Factor Results (departure angle, form factor):"
-    for ((ff, l, rg, count)) in shots:
+    for (ff, l, rg, count) in shots:
         print " %.4f,%.6f" % (math.degrees(l), ff)
+
+    if args.save_to_config:
+        for (ff, l, rg, count) in shots:
+            p.update_form_factors(l, ff)
+        p.to_config(args.save_to_config)
 
 def range_table(args):
     p = Projectile(args)
@@ -870,6 +885,10 @@ def find_ff_args(subparser):
     parser = subparser.add_parser('find-ff',
         description="Match the shot(s) specified by adjusting the form fator",
         help="Find the form factor to achieve the specified target range")
+    parser.add_argument('--save-to-config',
+        action='store',
+        required=False,
+        help='Save the calculated form factors to the given config file')
     add_projectile_args(parser)
     add_conditions_args(parser)
     g = parser.add_argument_group('match multiple shots')
@@ -1051,6 +1070,10 @@ def add_form_factors(parser, required=False):
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     # some global defaults . . .
+    #
+    # these are largely so that these attributes will always exist in the args
+    # namespace, rather than needing to check to see if they're there and then
+    # check whether they're set to something meaningful
     parser.set_defaults(
         show_trajectory=False,
         mass=None,
@@ -1060,6 +1083,7 @@ def parse_args():
         F=None,
         drag_function=None,
         departure_angle=None,
+        save_to_config=None,
     )
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
