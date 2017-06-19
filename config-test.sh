@@ -1,5 +1,6 @@
 #!/bin/bash
 
+sep="-----------------------------------------------"
 tmp=`mktemp -p /tmp config.XXXX`
 cat <<EOF >$tmp
 [projectile]
@@ -21,24 +22,23 @@ density_function = UK
 [initial_conditions]
 altitude = 0.0001
 mv = 769.62
-departure_angle = 45.0
 air_density_factor = 1.0
 
 [simulation]
 timestep = 0.1
 EOF
 
-echo -e "\nProjectile from a config file\n"
+echo -e "\nProjectile from a config file\n$sep"
 
-echo -e "\nSingle\n-----------------------------------------------\n"
+echo -e "\nSingle\n$sep\n"
 
-meb single --config $tmp -l 35.4617
+meb single --config $tmp -f 0.996695 -l 35.4617
 
-echo -e "\nMatch Range\n-----------------------------------------------\n"
+echo -e "\nMatch Range\n$sep\n"
 
 meb match-range --config $tmp --target-range 1500 -F 15,0.87 -F 20,0.9
 
-echo -e "\nFind Form Factors\n-----------------------------------------------\n"
+echo -e "\nFind Form Factors\n$sep\n"
 
 meb find-ff --config $tmp \
     --shot 2.3,4572 \
@@ -50,24 +50,24 @@ meb find-ff --config $tmp \
     --shot 32.4,32004 \
     --shot 39.2,34290
 
-echo -e "\nRange Table (range increment)\n-----------------------------------------------\n"
+echo -e "\nRange Table (range increment)\n$sep\n"
 
 meb range-table --config $tmp \
     --start 4572 \
     --end 35000 \
     --increment 4572
 
-echo -e "\nRange Table (angle increment)\n-----------------------------------------------\n"
+echo -e "\nRange Table (angle increment)\n$sep\n"
 
 meb range-table-angle --config $tmp \
     --start 5 \
     --end 45 \
     --increment 5
 
-echo -e "\nMax Range\n-----------------------------------------------\n"
+echo -e "\nMax Range\n$sep\n"
 
 meb max-range --config $tmp
 
-echo -e "\n-----------------------------------------------\n"
+echo -e "\n$sep\n"
 
-rm -f $tmp
+#rm -f $tmp

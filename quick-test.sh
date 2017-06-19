@@ -1,21 +1,24 @@
 #!/bin/bash
 
-echo -e "\nVery basic functionality tests\n"
+sep="-----------------------------------------------"
+echo -e "\nVery basic functionality tests\n$sep"
 
-echo -e "\nSingle\n-----------------------------------------------\n"
+echo -e "\nSingle\n$sep\n"
 
-meb single -m 952.544 -c 406.4 -v 792.48 -l 35.4617 \
-    -f 0.996695 --drag-function KD6
+meb single -m 928.927 -c 406.4 -v 769.62 -l 35.4617 \
+    -f 0.996695 --drag-function KD8 --density-function UK
 
-echo -e "\nMatch Range\n-----------------------------------------------\n"
+echo -e "\nMatch Range\n$sep\n"
 
 meb match-range -v 769.62 -m 928.927 -c 406.4 \
-    --drag-function KD6 --target-range 15000 \
+    --drag-function KD8 \
+    --density-function UK \
+    --target-range 15000 \
     -F 15,0.87 -F 20,0.9
 
-echo -e "\nFind Form Factors\n-----------------------------------------------\n"
+echo -e "\nFind Form Factors\n$sep\n"
 
-meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD2 \
+meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
     --shot 2.3,4572 \
     --shot 5.1,9144 \
@@ -26,7 +29,7 @@ meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD2 \
     --shot 32.4,32004 \
     --shot 39.2,34290
 
-echo -e "\nRange Table (range increment)\n-----------------------------------------------\n"
+echo -e "\nRange Table (range increment)\n$sep\n"
 
 meb range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -42,7 +45,7 @@ meb range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --end 35000 \
     --increment 4572
 
-echo -e "\nRange Table (angle increment)\n-----------------------------------------------\n"
+echo -e "\nRange Table (angle increment)\n$sep\n"
 
 meb range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -58,7 +61,7 @@ meb range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --end 45 \
     --increment 5
 
-echo -e "\nMax Range\n-----------------------------------------------\n"
+echo -e "\nMax Range\n$sep\n"
 
 meb max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -71,4 +74,4 @@ meb max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     -F 32.4,0.989613 \
     -F 39.2,1.002287
 
-echo -e "\n-----------------------------------------------\n"
+echo -e "\n$sep\n"
