@@ -114,16 +114,73 @@ gives us the following form factor data:
 
 and we're using the UK atmospheric model.
 
-All of this can now be used to specify the range table calculation. Note that
-we start at the bottom of the range we have source data for (4572m), and we
-end close to the top of the range we have source data for (35000m). We use a
-500yd (457.2m) increment for this example.
+Having decide on the drag function and form factors, we'll create a config file
+for this projectile. In a case like this where we've collected a bunch of
+information and we need to pull it all together into a config file we can either
+manually edit the file, or we can use the `make-config` command, which takes all
+the normal projectile configuration arguments and then writes them to a config
+file.
 
 ```
-$ ./meb.py range-table -m 928.927 -c 406.4 -v 769.62 \
+$ meb make-config -h
+
+usage: meb make-config [-h] --filename FILENAME [-m MASS] [-c CALIBER]
+                       [--density-function {US,UK,ICAO}]
+                       [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8} | --drag-function-file DRAG_FUNCTION_FILE]
+                       [-f FORM_FACTOR | -F FF,A] [-v MV] [-a ALTITUDE]
+                       [--air-density-factor AIR_DENSITY_FACTOR]
+                       [--config CONFIG] [--write-config CONFIG] [-I TIMESTEP]
+                       [--tolerance TOLERANCE]
+
+Make a configuration file
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+config file details:
+  --filename FILENAME   Config file name
+
+projectile:
+  -m MASS, --mass MASS  Projectile mass
+  -c CALIBER, --caliber CALIBER
+                        Projectile caliber
+  --density-function {US,UK,ICAO}
+                        Density Function: US Pre-1945 std, British std,ICAO
+                        std (default US)
+  --drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}
+                        Drag function to use (default KD8)
+  --drag-function-file DRAG_FUNCTION_FILE
+                        File to read drag function data from
+
+form factors:
+  -f FORM_FACTOR, --form-factor FORM_FACTOR
+                        Projectile form factor
+  -F FF,A               (form factor, departure angle) tuple - used to specify
+                        a set of form factors that will be used to determine
+                        the form factor for a given shot by interpolation
+
+conditions:
+  -v MV, --mv MV        Initial velocity
+  -a ALTITUDE, --altitude ALTITUDE
+                        Initial altitude (default 0)
+  --air-density-factor AIR_DENSITY_FACTOR
+                        Air density adjustment factor (default 1.0)
+
+common options:
+  --config CONFIG       Config file
+  --write-config CONFIG
+                        Write config from the command line to a file
+  -I TIMESTEP, --timestep TIMESTEP
+                        Simulation timestep
+  --tolerance TOLERANCE
+                        Convergance tolerance
+```
+
+We can build a configuration for our current projectile thusly:
+
+```
+$ meb make-config -m 928.927 -c 406.4 -v 769.62 \
         --drag-function KD8 --density-function UK \
-        --start 4572 --end 35000 \
-        --increment 457.2 \
         -F 2.3,0.709893   \
         -F 5.1,0.923971   \
         -F 8.5,0.966435   \
@@ -131,7 +188,43 @@ $ ./meb.py range-table -m 928.927 -c 406.4 -v 769.62 \
         -F 17.5,0.95898   \
         -F 23.7,0.965627  \
         -F 32.4,0.989613  \
-        -F 39.2,1.002287
+        -F 39.2,1.002287  \
+        --filename -
+
+[projectile]
+mass = 928.927
+caliber = 406.4
+drag_function = KD8
+density_function = UK
+
+[form_factor]
+2.3000000000000003 = 0.709893
+5.1 = 0.923971
+8.5 = 0.966435
+12.5 = 0.950629
+17.5 = 0.95898
+23.7 = 0.965627
+32.4 = 0.989613
+39.2 = 1.002287
+
+[initial_conditions]
+altitude = 0.0001
+mv = 769.62
+air_density_factor = 1.0
+
+[simulation]
+timestep = 0.1
+```
+
+This can now be used to specify the range table calculation. Note that we start
+at the bottom of the range we have source data for (4572m), and we end close to
+the top of the range we have source data for (35000m). We use a 500yd (457.2m)
+increment for this example.
+
+```
+$ meb --config test.conf \
+        --start 4572 --end 35000 \
+        --increment 457.2
 
 Range Table
 Projectile Configuration:
@@ -146,8 +239,9 @@ Projectile Configuration:
   23.7000deg: 0.965627
   32.4000deg: 0.989613
   39.2000deg: 1.002287
- Drag function: KD8
-Est. max range: 35167.55m at 46.2920deg
+ Drag Function: KD8
+ Density Function: UK
+Est. max range: 35167.5m at 46.2920deg
 Initial velocity: 769.6200m/s
 Air Density Factor: 1.0000
 Range increments: 457.2m
