@@ -102,6 +102,8 @@ class Projectile(object):
     drag_function = None
     drag_function_file = None
 
+    count = 0
+
     # Some stuff is required for us to be able to do anything useful, and other
     # stuff can have a default. Since we're pulling from a config file at the
     # same time as we're pulling from command line arguments, we can't simply
@@ -118,7 +120,6 @@ class Projectile(object):
     _defaults = {
         'timestep': 0.1,
         'altitude': 0.0001,
-        'departure_angle': math.radians(45.0),
         'air_density_factor': 1.0,
         'show_trajectory': False,
         'density_function': 'US',
@@ -208,7 +209,6 @@ class Projectile(object):
         cfg.add_section("initial_conditions")
         cfg.set("initial_conditions", "altitude", repr(self.altitude))
         cfg.set("initial_conditions", "mv", repr(self.mv))
-        cfg.set("initial_conditions", "departure_angle", repr(math.degrees(self.departure_angle)))
         cfg.set("initial_conditions", "air_density_factor", repr(self.air_density_factor))
 
         cfg.add_section("simulation")
@@ -562,6 +562,7 @@ class Projectile(object):
         h = (mid + high)/2.0
         (_, rg_low, _, _) = self.one_shot(l)
         (_, rg_high, _, _) = self.one_shot(h)
+        self.count = 2
         while abs(high - low) > tolerance:
             if rg_low < rg_high:
                 low = l
@@ -578,6 +579,7 @@ class Projectile(object):
                 rg_max = rg_high
                 da_max = h
             mid = (low + high)/2.0
+            self.count += 1
         self.Max_Range = (rg_max, da_max)
         return (rg_max, da_max)
 
@@ -606,7 +608,7 @@ class Projectile(object):
         low = math.radians(0.1)
         mid = high
         rg = 1.0e30
-        count = 0
+        self.count = 0
         while abs(target_range - rg) > tolerance/2:
             if rg > target_range:
                 high = mid
@@ -621,8 +623,8 @@ class Projectile(object):
                 # end of the curve. At this point we need to ...
                 pass
 
-            count += 1
-            if count >= 100:
+            self.count += 1
+            if self.count >= 100:
                 if abs(high - low) < 0.0001:
                     break
                 else:
@@ -636,14 +638,14 @@ class Projectile(object):
         ff = 1.0
         self.update_form_factors(l, ff)
         (_, rg, _, _) = self.one_shot(l)
-        count = 0
+        self.count = 1
         while abs(tr - rg) > tol/2.0:
             ff = ff * (rg/tr)
             self.clear_form_factors()
             self.update_form_factors(l, ff)
             (_, rg, _, _) = self.one_shot(l)
-            count += 1
-        return (ff, l, rg, count)
+            self.count += 1
+        return (ff, l, rg)
 
     def print_configuration(self):
         print "Projectile Configuration:"
@@ -662,7 +664,8 @@ class Projectile(object):
         if self.drag_function_file:
             print " Drag Function from file %s" % (self.drag_function_file)
         else:
-            print " Drag function: %s" % (self.drag_function)
+            print " Drag Function: %s" % (self.drag_function)
+        print " Density Function: %s" % (self.density_function)
         # we don't want to do this calculation here, so we cache it if it's already
         # been done and use that value
         if self.Max_Range:
@@ -672,7 +675,9 @@ class Projectile(object):
     def print_initial_conditions(self):
         print "Initial Conditions:"
         print " Velocity: %.3fm/s" % (self.mv)
-        print " Departure Angle: %.4fdeg" % (math.degrees(self.departure_angle))
+        # departure angle isn't always set
+        if self.departure_angle:
+            print " Departure Angle: %.4fdeg" % (math.degrees(self.departure_angle))
         print " Air Density Factor: %.6f" % (self.air_density_factor)
 
 
@@ -720,9 +725,9 @@ def match_range(args):
         except ValueError:
             print "Could not converge on range %.1fm" % (target_range)
             continue
-        shots.append((tr, tt, rg, iv, il, l))
+        shots.append((tr, tt, rg, iv, il, l, p.count))
     p.print_configuration()
-    for (tr, tt, rg, iv, il, l) in shots:
+    for (tr, tt, rg, iv, il, l, count) in shots:
         print ""
         print "Range %.1fm matched at the following conditions:" % (tr)
         print " Range: %.1fm" % (rg)
@@ -731,6 +736,7 @@ def match_range(args):
         print " Time of flight: %.2fs" % (tt)
         print " Impact Angle: %.4fdeg" % (math.degrees(il))
         print " Impact Velocity: %.2fm/s" % (iv)
+        print " Converged in %d iterations" % (count)
 
 # the form factor is close to linearly related to the range for a given
 # departure angle, so we can use a very focused search scheme
@@ -757,14 +763,14 @@ def match_form_factor(args):
 
     shots = []
     for (da, tr) in targets:
-            (ff, l, rg, count) = p.match_form_factor(da, tr, tolerance)
-            shots.append((ff, l, rg, count))
-            print "(%.2f,%.0f)" % (math.degrees(da), tr),
-            print "converged after %d iterations" % (count)
+            (ff, l, rg) = p.match_form_factor(da, tr, tolerance)
+            shots.append((ff, l, rg, p.count))
+#            print "(%.2f,%.0f)" % (math.degrees(da), tr),
+#            print "converged after %d iterations" % (p.count)
     print ""
     print "Form Factor Results (departure angle, form factor):"
     for (ff, l, rg, count) in shots:
-        print " %.4f,%.6f" % (math.degrees(l), ff)
+        print " %.4f,%.6f (%d iterations)" % (math.degrees(l), ff, count)
 
     if args.save_to_config:
         for (ff, l, rg, count) in shots:
@@ -934,8 +940,7 @@ def range_table_args(subparser):
     add_conditions_args(parser)
     add_common_args(parser)
     parser.set_defaults(func=range_table,
-        print_trajectory=False,
-        departure_angle=45.0)
+        print_trajectory=False)
 
 def range_table_angle_args(subparser):
     parser = subparser.add_parser('range-table-angle',
@@ -965,8 +970,7 @@ def range_table_angle_args(subparser):
     add_conditions_args(parser)
     add_common_args(parser)
     parser.set_defaults(func=range_table_angle,
-        print_trajectory=False,
-        departure_angle=45.0)
+        print_trajectory=False)
 
 def max_range_args(subparser):
     parser = subparser.add_parser('max-range',
@@ -977,8 +981,7 @@ def max_range_args(subparser):
     add_conditions_args(parser)
     add_common_args(parser)
     parser.set_defaults(func=max_range,
-        print_trajectory=False,
-        departure_angle=45.0)
+        print_trajectory=False)
 
 def add_projectile_args(parser):
     g = parser.add_argument_group('projectile')
