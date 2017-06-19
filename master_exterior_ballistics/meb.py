@@ -160,7 +160,11 @@ class Projectile(object):
         invalid = False
         for attr in self._required:
             t = getattr(self, attr)
-            if not t:
+            # this is odd, but we want to allow an empty list, which evaluates
+            # as False in the simple boolean context
+            if isinstance(t, list):
+                pass
+            elif not t:
                 invalid = True
                 print "Required attribute %s missing" % (attr)
         if invalid:
@@ -345,6 +349,9 @@ class Projectile(object):
     # The logic is to set defaults, from the config file if available (that
     # happens before now), then look through the arguments for values to
     # replace them.
+    #
+    # Note that we /want/ to allow a scenario where the form factor lists are
+    # defined as lists (rather than None), but are empty
     def load_form_factors(self, args):
         # set defaults
         tda = []
@@ -363,8 +370,8 @@ class Projectile(object):
         elif not args.F or len(args.F) == 0:
             # if we have arguments, use them
             if args.departure_angle and args.form_factor:
-                self.departure_angles = [math.radians(args.departure_angle)]
-                self.form_factors = [args.form_factor]
+                tda = [math.radians(args.departure_angle)]
+                tff = [args.form_factor]
         # finally we have the case where F is available with useful data
         elif len(args.F) > 0:
             tda = []
@@ -399,6 +406,9 @@ class Projectile(object):
         self.form_factors = list(tff)
 
     def get_FF(self, da):
+        # empty list? We've messed up somewhere . . .
+        if len(self.departure_angles) == 0:
+            raise ValueError("Missing form factors?")
         # only one form factor specified?
         if len(self.departure_angles) == 1:
             return self.form_factors[0]
@@ -646,7 +656,7 @@ class Projectile(object):
         # we don't want to do this calculation here, so we cache it if it's already
         # been done and use that value
         if self.Max_Range:
-            print "Est. max range: %.2fm at %.4fdeg" % (self.Max_Range[0],
+            print "Est. max range: %.1fm at %.4fdeg" % (self.Max_Range[0],
                                                         math.degrees(self.Max_Range[1]))
 
     def print_initial_conditions(self):
@@ -683,27 +693,34 @@ def max_range(args):
 
 def match_range(args):
     p = Projectile(args)
-    target_range = args.target_range
-    (rg_max, da_max) = p.max_range()
-    if target_range > rg_max + 1:
-        print "Target range is outside maximum range (%fm)" % (rg_max)
-        sys.exit(0)
     tolerance = args.tolerance
-    try:
-        (tt, rg, iv, il, l) = p.match_range(target_range,
-                                            tolerance)
-    except ValueError:
-        print "Could not converge on range %.1fm" % (target_range)
-        sys.exit(0)
+    (rg_max, da_max) = p.max_range()
+    targets = []
+    for tr in args.target_range:
+        tr = float(tr)
+        targets.append(tr)
+
+    shots = []
+    for tr in targets:
+        if tr > rg_max + 1:
+            print "Target range %.0fm is outside maximum range (%.0fm)" % (tr, rg_max)
+            continue
+        try:
+            (tt, rg, iv, il, l) = p.match_range(tr, tolerance)
+        except ValueError:
+            print "Could not converge on range %.1fm" % (target_range)
+            continue
+        shots.append((tr, tt, rg, iv, il, l))
     p.print_configuration()
-    print ""
-    print "Range %.1fm matched at the following conditions:" % (target_range)
-    print " Range: %.1fm" % (rg)
-    print " Initial Velocity: %.4fm/s" % (p.mv)
-    print " Departure Angle: %.4fdeg" % (math.degrees(p.departure_angle))
-    print " Time of flight: %.2fs" % (tt)
-    print " Impact Angle: %.4fdeg" % (math.degrees(il))
-    print " Impact Velocity: %.2fm/s" % (iv)
+    for (tr, tt, rg, iv, il, l) in shots:
+        print ""
+        print "Range %.1fm matched at the following conditions:" % (tr)
+        print " Range: %.1fm" % (rg)
+        print " Initial Velocity: %.4fm/s" % (p.mv)
+        print " Departure Angle: %.4fdeg" % (math.degrees(l))
+        print " Time of flight: %.2fs" % (tt)
+        print " Impact Angle: %.4fdeg" % (math.degrees(il))
+        print " Impact Velocity: %.2fm/s" % (iv)
 
 # the form factor is close to linearly related to the range for a given
 # departure angle, so we can use a very focused search scheme
@@ -711,23 +728,29 @@ def match_form_factor(args):
     target_range = args.target_range
     tolerance = args.tolerance
     p = Projectile(args)
-    shots = []
+    targets = []
     if args.shot:
         for shot in args.shot:
             (da, tr) = shot.split(',')
             da = math.radians(float(da))
             tr = float(tr)
-            (ff, l, rg, count) = p.match_form_factor(da, tr, tolerance)
-            shots.append((ff, l, rg, count))
+            targets.append((da, tr))
     else:
-        (ff, l, rg, count) = p.match_form_factor(p.departure_angle, target_range, tolerance)
-        shots.append((ff, l, rg, count))
-        print "Converged after %d iterations" % (count)
+        targets.append(p.departure_angle, target_range)
+
     # the form factor currently cached is meaningless at the moment, so clear
     # it rather than print it along with the rest of the projectile
     # configuration
     p.clear_form_factors()
     p.print_configuration()
+    print ""
+
+    shots = []
+    for (da, tr) in targets:
+            (ff, l, rg, count) = p.match_form_factor(da, tr, tolerance)
+            shots.append((ff, l, rg, count))
+            print "(%.2f,%.0f)" % (math.degrees(da), tr),
+            print "converged after %d iterations" % (count)
     print ""
     print "Form Factor Results (departure angle, form factor):"
     for ((ff, l, rg, count)) in shots:
@@ -827,10 +850,18 @@ def match_range_args(subparser):
     parser = subparser.add_parser('match-range',
         description="Match the target range by adjusting departure angle",
         help="Find the departure angle to achieve the specified target range")
+    g = parser.add_argument_group('match multiple shots')
+    g.add_argument('--target-range',
+        action='append',
+        required=False,
+        metavar='RANGE',
+        help=(
+            'Set of target ranges - may be used more than once, with each '
+            'range being matched'
+        ))
     add_projectile_args(parser)
     add_form_factors(parser)
     add_conditions_args(parser)
-    add_match_args(parser)
     add_common_args(parser)
     parser.set_defaults(func=match_range,
         print_trajectory=False)
@@ -1028,6 +1059,7 @@ def parse_args():
         form_factor=None,
         F=None,
         drag_function=None,
+        departure_angle=None,
     )
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
