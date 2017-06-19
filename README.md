@@ -41,16 +41,19 @@ line window (on Unix based systems this can be done using a terminal program
 like xterm, on Windows this can be done using the command window or a
 powershell window).
 
-The program itself is the meb.py file, and should be run from the same
-directory as the file since it loads data from the drag_functions directory.
-The simplest example of running the program is as follows:
+An installer is provided for Windows, accessible from the project's github
+releases page; for other platforms the recommended installation method is to
+download a release tarball and run the setup.py script contained.
+
+Once installed the program can be run by typing `meb` on the command line, for
+example:
 
 ```
-meb.py --help
+meb --help
 ```
 
-which will print out the basic help text. From there it is strongly recommended
-that you read the documentation, in particular the [examples](/examples/).
+will print out the basic help text. From there it is strongly recommended that
+you read the documentation, in particular the [examples](/examples/).
 
 # Basic Theory of Operation
 
@@ -94,6 +97,9 @@ The model performance may also be modified using the `--air-density-factor`
 option, which applies a simple scaling factor to the ballistic coefficient to
 account for changes in air density.
 
+In addition, there is support for writing a projectile configuration to a config
+file that can be re-used - this can make the program much easier to use.
+
 # Modes of Use
 
 This program can be used in a number of ways: to model a single "firing" of a
@@ -111,6 +117,10 @@ data will specify the initial velocity, departure angle, and the expected range
 for the set of known shots, and then vary the form factor until each shot
 matches the specified range.
 
+All the command line arguments can also be specified in a configuration file.
+Add the `--write-config` argument to a command line and specify a filename (or a
+single - to specify writing to the console) for a sample of the format.
+
 ## Single Run
 
 The simplest use case is to fire a single projectile and track its trajectory.
@@ -127,7 +137,9 @@ performance for a known set of initial conditions a target range and angle of
 departure must be specified. The program then performs multiple runs varying
 only the form factor until a shot matching the specified conditions is
 achieved. Support is also included for specifying a list of departure angle and
-range pairs, with each of these pairs being modeled separately.
+range pairs, with each of these pairs being modeled separately. Finally, it's
+possible to write a projectile configuration file with the newly calculated form
+factor data.
 
 Note that the form factor is not consistent across all possible initial
 conditions, since it attempts to encapsulate a range of physical properties not
