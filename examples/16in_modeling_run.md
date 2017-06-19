@@ -58,33 +58,31 @@ factor as 1.0 and see how it goes.
 To model a single shot the program should be run with the command `single`:
 
 ```
-$ ./meb.py single -h
+$ meb single -h
 
-usage: meb.py single [-h] -l DEPARTURE_ANGLE [-t] -f FORM_FACTOR -v MV -m MASS -c
-                  CALIBER [-a ALTITUDE] [-I TIMESTEP]
-                  [--air-density-factor AIR_DENSITY_FACTOR]
+usage: meb single [-h] -l DEPARTURE_ANGLE [-t] [-m MASS] [-c CALIBER]
                   [--density-function {US,UK,ICAO}]
-                  [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                  [--drag-function-file DRAG_FUNCTION_FILE]
+                  [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8} | --drag-function-file DRAG_FUNCTION_FILE]
+                  [-f FORM_FACTOR | -F FF,A] [-v MV] [-a ALTITUDE]
+                  [--air-density-factor AIR_DENSITY_FACTOR] [--config CONFIG]
+                  [--write-config WRITE_CONFIG] [-I TIMESTEP]
+                  [--tolerance TOLERANCE]
+
+Simulate a single shot
 
 optional arguments:
   -h, --help            show this help message and exit
+
+shot specifics:
   -l DEPARTURE_ANGLE, --departure-angle DEPARTURE_ANGLE
                         Departure Angle
-  -t, --print-trajectory
+  -t, --print-trajectory, --show-trajectory
                         Print projectile trajectory
-  -f FORM_FACTOR, --form-factor FORM_FACTOR
-                        Projectile form factor
-  -v MV, --mv MV        Initial velocity
+
+projectile:
   -m MASS, --mass MASS  Projectile mass
   -c CALIBER, --caliber CALIBER
                         Projectile caliber
-  -a ALTITUDE, --altitude ALTITUDE
-                        Initial altitude (default 0)
-  -I TIMESTEP, --timestep TIMESTEP
-                        Simulation timestep
-  --air-density-factor AIR_DENSITY_FACTOR
-                        Air density adjustment factor (default 1.0)
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
@@ -92,12 +90,35 @@ optional arguments:
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
+
+form factors:
+  -f FORM_FACTOR, --form-factor FORM_FACTOR
+                        Projectile form factor
+  -F FF,A               (form factor, departure angle) tuple - used to specify
+                        a set of form factors that will be used to determine
+                        the form factor for a given shot by interpolation
+
+conditions:
+  -v MV, --mv MV        Initial velocity
+  -a ALTITUDE, --altitude ALTITUDE
+                        Initial altitude (default 0)
+  --air-density-factor AIR_DENSITY_FACTOR
+                        Air density adjustment factor (default 1.0)
+
+common options:
+  --config CONFIG       Config file
+  --write-config CONFIG
+                        Write config from the command line to a file
+  -I TIMESTEP, --timestep TIMESTEP
+                        Simulation timestep
+  --tolerance TOLERANCE
+                        Convergance tolerance
 ```
 
 Putting the values we determined above onto the command line gives this:
 
 ```
-$ ./meb.py single -m 952.544 -c 406.4 -v 792.48 \
+$ meb single -m 952.544 -c 406.4 -v 792.48 \
         -l 45.2483 -f 1.0 --drag-function KD6
 ```
 
@@ -108,7 +129,8 @@ Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 1.0000
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
@@ -133,7 +155,8 @@ Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 0.9000
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
@@ -156,38 +179,29 @@ narrowing it down to whatever precision we desired. However, the program
 supports doing this automatically, using the `find-ff` command:
 
 ```
-$ ./meb.py find-ff -h
+$ meb find-ff -h
 
-usage: meb.py find-ff [-h] [-l DEPARTURE_ANGLE] [-f FORM_FACTOR] [--shot A,R]
-                   [--target-range TARGET_RANGE] [--tolerance TOLERANCE] -v MV
-                   -m MASS -c CALIBER [-a ALTITUDE] [-I TIMESTEP]
-                   [--air-density-factor AIR_DENSITY_FACTOR]
-                   [--density-function {US,UK,ICAO}]
-                   [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                   [--drag-function-file DRAG_FUNCTION_FILE]
+usage: meb find-ff [-h] [--save-to-config SAVE_TO_CONFIG] [-m MASS]
+                   [-c CALIBER] [--density-function {US,UK,ICAO}]
+                   [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8} | --drag-function-file DRAG_FUNCTION_FILE]
+                   [-v MV] [-a ALTITUDE]
+                   [--air-density-factor AIR_DENSITY_FACTOR] [--shot A,R]
+                   [-l DEPARTURE_ANGLE] [--target-range TARGET_RANGE]
+                   [--config CONFIG] [--write-config WRITE_CONFIG]
+                   [-I TIMESTEP] [--tolerance TOLERANCE]
+
+Match the shot(s) specified by adjusting the form fator
 
 optional arguments:
   -h, --help            show this help message and exit
-  -l DEPARTURE_ANGLE, --departure-angle DEPARTURE_ANGLE
-                        Departure Angle
-  -f FORM_FACTOR, --form-factor FORM_FACTOR
-                        Projectile form factor
-  --shot A,R            Set of <angle,range> tuples - may be used more than
-                        once, with each tuple being simulated
-  --target-range TARGET_RANGE
-                        Target range
-  --tolerance TOLERANCE
-                        Convergence tolerance
-  -v MV, --mv MV        Initial velocity
+  --save-to-config CONFIG
+                        Save the calculated form factors to the given config
+                        file
+
+projectile:
   -m MASS, --mass MASS  Projectile mass
   -c CALIBER, --caliber CALIBER
                         Projectile caliber
-  -a ALTITUDE, --altitude ALTITUDE
-                        Initial altitude (default 0)
-  -I TIMESTEP, --timestep TIMESTEP
-                        Simulation timestep
-  --air-density-factor AIR_DENSITY_FACTOR
-                        Air density adjustment factor (default 1.0)
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
@@ -195,6 +209,32 @@ optional arguments:
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
+
+conditions:
+  -v MV, --mv MV        Initial velocity
+  -a ALTITUDE, --altitude ALTITUDE
+                        Initial altitude (default 0)
+  --air-density-factor AIR_DENSITY_FACTOR
+                        Air density adjustment factor (default 1.0)
+
+match multiple shots:
+  --shot A,R            Set of <angle,range> tuples - may be used more than
+                        once, with each tuple being simulated
+
+match single shot:
+  -l DEPARTURE_ANGLE, --departure-angle DEPARTURE_ANGLE
+                        Departure Angle
+  --target-range TARGET_RANGE
+                        Target range
+
+common options:
+  --config CONFIG       Config file
+  --write-config CONFIG
+                        Write config from the command line to a file
+  -I TIMESTEP, --timestep TIMESTEP
+                        Simulation timestep
+  --tolerance TOLERANCE
+                        Convergance tolerance
 ```
 
 Given the other elements of the projectile configuration (the mass, caliber and
@@ -205,17 +245,20 @@ Using the previously specified shot, with a target range of 36210m at a
 departure angle of 45.2483 degrees:
 
 ```
-$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 \
+$ meb find-ff -m 952.544 -c 406.4 -v 792.48 \
          --drag-function KD6 --target-range 36210 -l 45.2483
 
-Converged after 7 iterations
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 1.000000
 
 Form Factor Results (departure angle, form factor):
- 45.2483,0.996695
+ 45.2483,0.996695 (8 iterations)
 ```
 
 The program has found the required form factor to match the shot - 0.996695. As
@@ -225,14 +268,15 @@ To verify that this is correct we can re-run the single shot mode that we tried
 before, using the new value for the form factor:
 
 ```
-$ ./meb.py single -m 952.544 -c 406.4 -v 792.48
+$ meb single -m 952.544 -c 406.4 -v 792.48
         -l 45.2483 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 0.9967
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 45.2483deg
@@ -272,14 +316,15 @@ Taking the first row in our sample, converted to metric:
 Modeling this shot gives us:
 
 ```
-$ ./meb.py single -m 952.544 -c 406.4 -v 792.48 \
+$ meb single -m 952.544 -c 406.4 -v 792.48 \
         -l 35.4617 -f 0.996695 --drag-function KD6
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 0.9967
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
 Initial Conditions:
  Velocity: 792.480m/s
  Departure Angle: 35.4617deg
@@ -299,17 +344,20 @@ performance. We can go back and run the find-ff command again with this shot as
 the target data to quantify this match:
 
 ```
-$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 \
-		 --drag-function KD6 --target-range 33832.8 -l 35.4617
+$ meb find-ff -m 952.544 -c 406.4 -v 792.48 \
+        --drag-function KD6 --target-range 33832.8 -l 35.4617
 
-Converged after 8 iterations
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 1.000000
 
 Form Factor Results (departure angle, form factor):
- 35.4617,0.996803
+ 35.4617,0.996803 (9 iterations)
 ```
 
 The resulting form factor differs by 0.0001, or about 1 parts in 10000,
@@ -328,37 +376,32 @@ metric gives a range from 33832.8m to 36210m in 91.44m increments. The range
 table can be replicated using the `range-table` command:
 
 ```
-$ ./meb.py range-table --help
+$ meb range-table --help
 
-usage: meb.py range-table [-h] [-f FORM_FACTOR] [--increment INCREMENT]
-                       [--start START] [--end END] [-F FF,A] -v MV -m MASS -c
-                       CALIBER [-a ALTITUDE] [-I TIMESTEP]
-                       [--air-density-factor AIR_DENSITY_FACTOR]
+usage: meb range-table [-h] [--increment INCREMENT] [--start START]
+                       [--end END] [-m MASS] [-c CALIBER]
                        [--density-function {US,UK,ICAO}]
-                       [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8}]
-                       [--drag-function-file DRAG_FUNCTION_FILE]
+                       [--drag-function {1938,1940,KD1,KD2,KD6,KD7,KD8} | --drag-function-file DRAG_FUNCTION_FILE]
+                       [-f FORM_FACTOR | -F FF,A] [-v MV] [-a ALTITUDE]
+                       [--air-density-factor AIR_DENSITY_FACTOR]
+                       [--config CONFIG] [--write-config WRITE_CONFIG]
+                       [-I TIMESTEP] [--tolerance TOLERANCE]
+
+Calculate a range table based on range increments
 
 optional arguments:
   -h, --help            show this help message and exit
-  -f FORM_FACTOR, --form-factor FORM_FACTOR
-                        Projectile form factor
+
+range table options:
   --increment INCREMENT
                         Range steps for range table
   --start START         Starting range
   --end END             End range
-  -F FF,A               (form factor, departure angle) tuple - used to specify
-                        a set of form factors that will be used to determine
-                        the form factor for a given shot by interpolation
-  -v MV, --mv MV        Initial velocity
+
+projectile:
   -m MASS, --mass MASS  Projectile mass
   -c CALIBER, --caliber CALIBER
                         Projectile caliber
-  -a ALTITUDE, --altitude ALTITUDE
-                        Initial altitude (default 0)
-  -I TIMESTEP, --timestep TIMESTEP
-                        Simulation timestep
-  --air-density-factor AIR_DENSITY_FACTOR
-                        Air density adjustment factor (default 1.0)
   --density-function {US,UK,ICAO}
                         Density Function: US Pre-1945 std, British std,ICAO
                         std (default US)
@@ -366,13 +409,36 @@ optional arguments:
                         Drag function to use (default KD8)
   --drag-function-file DRAG_FUNCTION_FILE
                         File to read drag function data from
+
+form factors:
+  -f FORM_FACTOR, --form-factor FORM_FACTOR
+                        Projectile form factor
+  -F FF,A               (form factor, departure angle) tuple - used to specify
+                        a set of form factors that will be used to determine
+                        the form factor for a given shot by interpolation
+
+conditions:
+  -v MV, --mv MV        Initial velocity
+  -a ALTITUDE, --altitude ALTITUDE
+                        Initial altitude (default 0)
+  --air-density-factor AIR_DENSITY_FACTOR
+                        Air density adjustment factor (default 1.0)
+
+common options:
+  --config CONFIG       Config file
+  --write-config CONFIG
+                        Write config from the command line to a file
+  -I TIMESTEP, --timestep TIMESTEP
+                        Simulation timestep
+  --tolerance TOLERANCE
+                        Convergance tolerance
 ```
 
 The projectile details stay the same, and we simply specify the start, end and
 increment:
 
 ```
-$ ./meb.py range-table -m 952.544 -c 406.4 -v 792.48 \
+$ meb range-table -m 952.544 -c 406.4 -v 792.48 \
         -f 0.996695 --drag-function KD6 --start 33832.8 --end 36210 \
         --increment 91.44
 
@@ -381,8 +447,9 @@ Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
  Form Factor: 0.9967
- Drag function: KD6
-Est. max range: 36301.84m at 47.4681deg
+ Drag Function: KD6
+ Density Function: US
+Est. max range: 36301.8m at 47.4681deg
 Initial velocity: 792.4800m/s
 Air Density Factor: 1.0000
 Range increments: 91.4m
@@ -424,6 +491,8 @@ left to the reader, but a quick eyeballing of the easily comparable numbers
 suggest that the departure angles found for each range are close but not perfect
 matches, and the terminal conditions are within a percent of the original data.
 
+# A Better Match
+
 In a case like this where the form factor was so consistent across a range of
 departure angles it may be worth creating a full range table using this form
 factor, but without having access to a wider range of data any extensions beyond
@@ -437,18 +506,22 @@ intermediate ranges. We can determine the form factor for a number of different
 known scenarios at once using the `--shot` option:
 
 ```
-$ ./meb.py find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+$ meb find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
         --shot 35.4617,33832.8 \
         --shot 45.2483,36210
 
 Projectile Configuration:
  Mass: 952.544kg
  Caliber: 406.400mm
- Drag function: KD6
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 1.000000
 
 Form Factor Results (departure angle, form factor):
- 35.4617,0.996803
- 45.2483,0.996695
+ 35.4617,0.996803 (9 iterations)
+ 45.2483,0.996695 (8 iterations)
 ```
 
 Each `--shot` option specifies the departure angle and the target range, and
@@ -461,7 +534,7 @@ interpolate between the available data points to determine the form factor for
 a given departure angle:
 
 ```
-$ ./meb.py range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+$ meb range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
         --start 33832.8 --end 36210 --increment 91.44 \
         -F 35.4617,0.996803 \
         -F 45.2483,0.996695
@@ -473,8 +546,9 @@ Projectile Configuration:
  Form Factor data:
   35.4617deg: 0.996803
   45.2483deg: 0.996695
- Drag function: KD6
-Est. max range: 36302.28m at 47.4757deg
+ Drag Function: KD6
+ Density Function: US
+Est. max range: 36302.3m at 47.4757deg
 Initial velocity: 792.4800m/s
 Air Density Factor: 1.0000
 Range increments: 91.4m
@@ -517,3 +591,210 @@ match for reality. Given sufficient source data this method can be used to give
 a reliable result across a wide range of departure angles, always with the
 proviso that moving outside the range of the source data can affect the
 reliability and accuracy of the results.
+
+# Configuration from a File
+
+The program can also load the projectile configuration from a file, containing
+the projectile details, the initial conditions and basic simulation
+configuration. The following is a configuration file that can be used to
+replicate the range table above:
+
+```
+[projectile]
+mass = 952.544
+caliber = 406.4
+drag_function = KD6
+density_function = US
+
+[form_factor]
+35.4617 = 0.996803
+45.2483 = 0.996695
+
+[initial_conditions]
+altitude = 0.0001
+mv = 792.48
+air_density_factor = 1.0
+
+[simulation]
+timestep = 0.1
+```
+
+The mass, caliber, drag function, density function and form factors define the
+basic projectile; the initial conditions define the environmental scenario, and
+the simulation configuration defines the behaviour of the simulation.
+
+This configuration file can be produced by simply appending the `--write-config`
+argument to the command line that produced the range table:
+
+```
+$ meb range-table -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+        --start 33832.8 \
+        --end 36210 \
+        --increment 91.44 \
+        -F 35.4617,0.996803 \
+        -F 45.2483,0.996695 \
+        --write-config -
+
+[projectile]
+mass = 952.544
+caliber = 406.4
+drag_function = KD6
+density_function = US
+
+[form_factor]
+35.4617 = 0.996803
+45.2483 = 0.996695
+
+[initial_conditions]
+altitude = 0.0001
+mv = 792.48
+air_density_factor = 1.0
+
+[simulation]
+timestep = 0.1
+
+Config written to -
+```
+
+Note that the special filename '-' causes the program to write to the console
+rather than to a file.
+
+Once written to a file, the range table command above can be greatly simplified
+by using the config file:
+
+```
+$ meb range-table --config test.conf \
+        --start 33832.8 \
+        --end 36210 \
+        --increment 91.44
+
+Range Table
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Form Factor data:
+  35.4617deg: 0.996803
+  45.2483deg: 0.996695
+ Drag Function: KD6
+ Density Function: US
+Est. max range: 36302.3m at 47.4757deg
+Initial velocity: 792.4800m/s
+Air Density Factor: 1.0000
+Range increments: 91.4m
+
+<snip>
+```
+
+This is particularly useful when a projectile requires a large range of form
+factors to model its behaviour.
+
+The `--config` argument can be used anywhere, in lieu of all the regular
+projectile specification arguments. For example, it can make the `max-range`
+command particularly simple:
+
+```
+$ meb max-range --config test.conf
+
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Form Factor data:
+  35.4617deg: 0.996803
+  45.2483deg: 0.996695
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 1.000000
+
+Maximum range: 36302.28m
+Departure Angle for maximum range: 47.4757deg
+```
+
+Any argument specified on the command line will override the contents of the
+file, allowing you to explore the behaviour of a projectile without having to do
+lots of typing:
+
+```
+$ meb max-range --config test.conf --mv 780
+
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Form Factor data:
+  35.4617deg: 0.996803
+  45.2483deg: 0.996695
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 780.000m/s
+ Air Density Factor: 1.000000
+
+Maximum range: 35235.52m
+Departure Angle for maximum range: 47.3147deg
+```
+
+or
+
+```
+$ meb max-range --config test.conf --air-density-factor 0.95
+
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Form Factor data:
+  35.4617deg: 0.996803
+  45.2483deg: 0.996695
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 0.950000
+
+Maximum range: 37225.75m
+Departure Angle for maximum range: 47.4515deg
+```
+
+One final feature, when using the `find-ff` command: adding the
+`--save-to-config` option allows the newly calculated form factor data to be
+added to the projectile and written out to a file, greatly simplifying the
+process of creating a configuration file for a projectile.
+
+```
+$ meb find-ff -m 952.544 -c 406.4 -v 792.48 --drag-function KD6 \
+        --shot 35.4617,33832.8 \
+        --shot 45.2483,36210 \
+        --save-to-config -
+
+Projectile Configuration:
+ Mass: 952.544kg
+ Caliber: 406.400mm
+ Drag Function: KD6
+ Density Function: US
+Initial Conditions:
+ Velocity: 792.480m/s
+ Air Density Factor: 1.000000
+
+Form Factor Results (departure angle, form factor):
+ 35.4617,0.996803 (9 iterations)
+ 45.2483,0.996695 (8 iterations)
+
+[projectile]
+mass = 952.544
+caliber = 406.4
+drag_function = KD6
+density_function = US
+
+[form_factor]
+35.4617 = 0.9968025831684211
+45.2483 = 0.9966946334692636
+
+[initial_conditions]
+altitude = 0.0001
+mv = 792.48
+air_density_factor = 1.0
+
+[simulation]
+timestep = 0.1
+```
+
