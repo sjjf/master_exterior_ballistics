@@ -849,12 +849,31 @@ def range_table_angle(args):
                                                       iv)
         l += increment
 
+def make_config(args):
+    p = Projectile(args)
+    p.to_config(args.filename)
+
 # the argument handling is crazy complicated and hard to work with, and it's
 # not conducive to using any of the setuptools wrapper mechanisms, so I'm going
 # to rework it. The core of the reworking is to treat each of the commands as a
 # separate entity with responsibility for setting up its own command line
 # parser. There will be a number of functions that add common arguments, and a
 # function for each command that pulls it all together in a subparser.
+
+def config_args(subparser):
+    parser = subparser.add_parser('make-config',
+        description="Make a configuration file",
+        help="Config file mode")
+    g = parser.add_argument_group('config file details')
+    g.add_argument('--filename',
+        action='store',
+        required=True,
+        help="Config file name")
+    add_projectile_args(parser)
+    add_form_factors(parser)
+    add_conditions_args(parser)
+    add_common_args(parser)
+    parser.set_defaults(func=make_config)
 
 def single_args(subparser):
     parser = subparser.add_parser('single',
@@ -1109,6 +1128,7 @@ def parse_args():
     range_table_args(subparsers)
     range_table_angle_args(subparsers)
     max_range_args(subparsers)
+    config_args(subparsers)
 
     return parser.parse_args()
 
