@@ -214,10 +214,11 @@ class Projectile(object):
         cfg.add_section("simulation")
         cfg.set("simulation", "timestep", repr(self.timestep))
 
-        if filename:
+        if filename != '-':
             with open(filename, "w") as outfile:
                 cfg.write(outfile)
             return
+        print ""
         cfg.write(sys.stdout)
 
     def load_config(self, args):
@@ -253,7 +254,11 @@ class Projectile(object):
         self.altitude = alt
 
     def set_departure_angle(self, l):
-        self.departute_angle = l
+        self.departure_angle = l
+
+    # sometimes we want to get rid of this
+    def unset_departure_angle(self):
+        self.departure_angle = None
 
     def set_mv(self, mv):
         self.mv = mv
@@ -374,6 +379,10 @@ class Projectile(object):
         # nothing available to replace the current values
         if "F" not in args and "form_factor" not in args:
             pass
+        # -f/--form-factor was specified but no departure angle was specified
+        elif args.form_factor and not args.departure_angle:
+            tda = [45.0]
+            tff = [args.form_factor]
         # F is in args, but with no meaningful data - in this case we pull in
         # the form_factor/departure_angle pair that are in the arguments, or we
         # leave things unchanged if neither of them are available
@@ -752,14 +761,15 @@ def match_form_factor(args):
             tr = float(tr)
             targets.append((da, tr))
     else:
-        targets.append(p.departure_angle, target_range)
+        targets.append((p.departure_angle, target_range))
 
     # the form factor currently cached is meaningless at the moment, so clear
     # it rather than print it along with the rest of the projectile
     # configuration
     p.clear_form_factors()
+    p.unset_departure_angle()
     p.print_configuration()
-    print ""
+    p.print_initial_conditions()
 
     shots = []
     for (da, tr) in targets:
@@ -894,6 +904,7 @@ def find_ff_args(subparser):
     parser.add_argument('--save-to-config',
         action='store',
         required=False,
+        metavar='CONFIG',
         help='Save the calculated form factors to the given config file')
     add_projectile_args(parser)
     add_conditions_args(parser)
@@ -1032,6 +1043,7 @@ def add_common_args(parser):
         help='Config file')
     g.add_argument('--write-config',
         action='store',
+        metavar='CONFIG',
         help='Write config from the command line to a file')
     g.add_argument('-I', '--timestep',
         action='store',
