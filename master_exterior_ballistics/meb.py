@@ -72,6 +72,9 @@ def interpolate(a, x1, x2, y1, y2):
     # between y1 and y2
     return y1 + ((y2 - y1)*((a - x1)/(x2 - x1)))
 
+def str2bool(v):
+    return v.lower() in ['yes', 'true', 'y', 't', '1']
+
 class Projectile(object):
 
     timestep = 0.1
@@ -81,6 +84,8 @@ class Projectile(object):
     mv = None
     departure_angle = None
     air_density_factor = None
+    density_function = None
+    atmosphere = None
     show_trajectory = None
     Traj = []
     Max_Range = None
@@ -91,28 +96,88 @@ class Projectile(object):
     drag_function = None
     drag_function_file = None
 
+    # Some stuff is required for us to be able to do anything useful, and other
+    # stuff can have a default. Since we're pulling from a config file at the
+    # same time as we're pulling from command line arguments, we can't simply
+    # use the argparse 'require' feature - it's more complex than that.
+    # Instead, we need to know here what values are needed, and what we have
+    # defaults for, and we need to deal with the argument status ourselves.
+    #
+    # The logic here is that if a config file has been specified we load stuff
+    # from it, and then after that we update the object based on the command
+    # line arguments, and finally we check that all the necessary data is
+    # available before we return, setting the defaults if any of them are
+    # missing.
+    _required = ['mass', 'caliber', 'mv', 'form_factors', 'drag_function']
+    _defaults = {
+        'timestep': 0.1,
+        'altitude': 0.0001,
+        'departure_angle': 45.0,
+        'air_density_factor': 1.0,
+        'show_trajectory': False,
+        'density_function': 'US',
+        'drag_function': 'KD8',
+    }
+
+    _wrapper = {
+        'mass': float,
+        'caliber': float,
+        'mv': float,
+        'timestep': float,
+        'altitude': float,
+        'departure_angle': float,
+        'air_density_factor': float,
+        'show_trajectory': str2bool,
+    }
+
     def __init__(self, args):
+        self.load_config(args)
         self.set_atmosphere(args)
         self.load_drag_function(args)
         self.load_form_factors(args)
 
-        self.altitude = args.altitude
-        self.departure_angle = 0.0
+        if args.altitude:
+            self.altitude = args.altitude
         if args.departure_angle:
             self.departure_angle = math.radians(args.departure_angle)
-        self.mv = args.mv
-        self.caliber = args.caliber
-        self.air_density_factor = args.air_density_factor
-        self.mass = args.mass
-        if "timestep" in args:
+        if args.mv:
+            self.mv = args.mv
+        if args.caliber:
+            self.caliber = args.caliber
+        if args.air_density_factor:
+            self.air_density_factor = args.air_density_factor
+        if args.mass:
+            self.mass = args.mass
+        if args.timestep:
             self.timestep = args.timestep
         if args.show_trajectory:
-            self.show_trajectory = True
+            self.show_trajectory = args.show_trajectory
+
+        self.verify()
+
+    def verify(self):
+        # check for required values
+        invalid = False
+        for attr in self._required:
+            t = getattr(self, attr)
+            if not t:
+                invalid = True
+                print "Required attribute %s missing" % (attr)
+        if invalid:
+            print "Projectile not fully configured"
+            sys.exit(1)
+
+        # fix missing defaults
+        for (attr, default) in self._defaults.items():
+            t = getattr(self, attr)
+            if not t:
+                setattr(self, attr, default)
 
     # write out an ini-formatted config file for this projectile
     # If filename is not given, write to stdout
     def to_config(self, filename=None):
         cfg = cfgparser()
+
         cfg.add_section("projectile")
         cfg.set("projectile", "mass", repr(self.mass))
         cfg.set("projectile", "caliber", repr(self.caliber))
@@ -141,6 +206,33 @@ class Projectile(object):
             return
         cfg.write(sys.stdout)
 
+    def load_config(self, args):
+        if not args.config:
+            return
+        filename = args.config
+        cfg = cfgparser()
+        try:
+            with open(filename) as fp:
+                cfg.readfp(fp, filename)
+        except IOError as e:
+            print "Unable to load config file %s: %s" % (filename, e)
+            sys.exit(1)
+
+        for section in cfg.sections():
+            # form factor needs to be treated specially
+            if section == "form_factor":
+                self.clear_form_factors()
+                for (da, ff) in cfg.items(section):
+                    self.update_form_factors(math.radians(float(da)), float(ff))
+            else:
+                for (attr, value) in cfg.items(section):
+                    try:
+                        w = self._wrapper[attr]
+                        value = w(value)
+                    except KeyError:
+                        pass
+                    setattr(self, attr, value)
+
     # these are the only things that change during the lifetime of the
     # projectile object
     def set_altitude(self, alt):
@@ -153,37 +245,61 @@ class Projectile(object):
         self.mv = mv
 
     def set_atmosphere(self, args):
-        self.atmosphere = None
-        self.density_function = args.density_function
-        if args.density_function == "US":
+        if args.density_function:
+            self.density_function = args.density_function
+        if not self.density_function and 'density_function' in self._defaults:
+            self.density_function = self._defaults['density_function']
+        if self.density_function == "US":
             self.atmosphere = atmosphere_US
             return
-        if args.density_function == "UK":
+        if self.density_function == "UK":
             self.atmosphere = atmosphere_UK
             return
-        if args.density_function == "ICAO":
+        if self.density_function == "ICAO":
             self.atmosphere = atmosphere_icao
             return
         print "No atmosphere model specified?"
 
+    # the drag function can be specified in a file, or picked from a list of
+    # already defined options. Anything specified on the command line takes
+    # precedence over the config file; in a config file the drag_function_file
+    # option takes precedence over the drag_function option
     def load_drag_function(self, args):
-        self.drag_function = None
-        self.drag_function_file = None
         if args.drag_function_file:
             self.drag_function_file = args.drag_function_file
-            try:
-                with open(self.drag_function_file) as df:
-                    self._load_drag_function(df)
-            except IOError as e:
-                print "Could not load drag function from file ",
-                print "%s: %s" % (self.drag_function_file, e)
-                sys.exit(1)
-        else:
+            self.drag_function = "file"
+            self._load_drag_function_file()
+            return
+        if args.drag_function:
             self.drag_function = args.drag_function
-            df_resource = "drag_functions/%s.conf" % (self.drag_function)
-            df = pkg_resources.resource_stream('master_exterior_ballistics',
-                                               df_resource)
-            self._load_drag_function(df)
+            self._load_drag_function_std()
+            return
+        if self.drag_function_file:
+            self._load_drag_function_file()
+            return
+        if self.drag_function:
+            self._load_drag_function_std()
+            return
+        # at this point we have nothing specified anywhere, but we do have a
+        # default!
+        if 'drag_function' in self._defaults:
+            self.drag_function = self._defaults['drag_function']
+            self._load_drag_function_std()
+
+    def _load_drag_function_file(self):
+        try:
+            with open(self.drag_function_file) as df:
+                self._load_drag_function(df)
+        except IOError as e:
+            print "Could not load drag function from file ",
+            print "%s: %s" % (self.drag_function_file, e)
+            sys.exit(1)
+
+    def _load_drag_function_std(self):
+        df_resource = "drag_functions/%s.conf" % (self.drag_function)
+        df = pkg_resources.resource_stream('master_exterior_ballistics',
+                                           df_resource)
+        self._load_drag_function(df)
 
     def _load_drag_function(self, df):
         mach = []
@@ -223,22 +339,34 @@ class Projectile(object):
         t = ((m - m1)/(m2 - m1))*(k2 - k1) + k1
         return t
 
+    # as with all the other stuff, we allow the command line arguments to
+    # override the config file.
+    #
+    # The logic is to set defaults, from the config file if available (that
+    # happens before now), then look through the arguments for values to
+    # replace them.
     def load_form_factors(self, args):
-        # in some cases F may not be in args at all - in that case, we know
-        # that form_factor won't be in args either, so we can just set an empty
-        # value
-        if "F" not in args:
-            self.departure_angles = []
-            self.form_factors = []
-            return
-        # in other cases F may be in args, but with no meaningful data - in
-        # that case we pull in the form_factor that should be in args
+        # set defaults
+        tda = []
+        tff = []
+        if self.departure_angles:
+            # these will be from the config file
+            tda = self.departure_angles
+            tff = self.form_factors
+
+        # nothing available to replace the current values
+        if "F" not in args and "form_factor" not in args:
+            pass
+        # F is in args, but with no meaningful data - in this case we pull in
+        # the form_factor/departure_angle pair that are in the arguments, or we
+        # leave things unchanged if neither of them are available
         elif not args.F or len(args.F) == 0:
-            self.departure_angles = [math.radians(args.departure_angle)]
-            self.form_factors = [args.form_factor]
-            return
-        # and all that's left is args.F being a non-empty array
-        else:
+            # if we have arguments, use them
+            if args.departure_angle and args.form_factor:
+                self.departure_angles = [math.radians(args.departure_angle)]
+                self.form_factors = [args.form_factor]
+        # finally we have the case where F is available with useful data
+        elif len(args.F) > 0:
             tda = []
             tff = []
             for ff in args.F:
@@ -247,10 +375,10 @@ class Projectile(object):
                 ff = float(ff)
                 tda.append(da)
                 tff.append(ff)
-            # these need to be sorted
-            self.departure_angles = tda
-            self.form_factors = tff
-            self.sort_form_factors()
+        # these need to be sorted
+        self.departure_angles = tda
+        self.form_factors = tff
+        self.sort_form_factors()
 
     def clear_form_factors(self):
         self.departure_angles = []
@@ -524,7 +652,7 @@ class Projectile(object):
     def print_initial_conditions(self):
         print "Initial Conditions:"
         print " Velocity: %.3fm/s" % (self.mv)
-        print " Departure Angle: %.4fdeg" % (self.departure_angle)
+        print " Departure Angle: %.4fdeg" % (math.degrees(self.departure_angle))
         print " Air Density Factor: %.6f" % (self.air_density_factor)
 
 
@@ -545,6 +673,7 @@ def single_run(args):
 def max_range(args):
     p = Projectile(args)
     p.print_configuration()
+    p.print_initial_conditions()
     print ""
 
     (rg_max, da) = p.max_range()
@@ -687,7 +816,6 @@ def single_args(subparser):
         dest='show_trajectory',
         action='store_true',
         required=False,
-        default=False,
         help="Print projectile trajectory")
     add_projectile_args(parser)
     add_form_factors(parser)
@@ -806,28 +934,23 @@ def add_projectile_args(parser):
     g = parser.add_argument_group('projectile')
     g.add_argument('-m', '--mass',
         action='store',
-        required=True,
         type=float,
         help='Projectile mass')
     g.add_argument('-c', '--caliber',
         action='store',
-        required=True,
         type=float,
         help='Projectile caliber')
     g.add_argument('--density-function',
         action='store',
-        required=False,
         choices=['US', 'UK', 'ICAO'],
-        default="US",
         help=(
             'Density Function: US Pre-1945 std, British std,'
             'ICAO std (default US)'
         ))
-    gme = g.add_mutually_exclusive_group(required=True)
+    gme = g.add_mutually_exclusive_group()
     gme.add_argument('--drag-function',
         action='store',
         choices=Projectile.get_drag_functions(),
-        default="KD8",
         help="Drag function to use (default KD8)")
     gme.add_argument('--drag-function-file',
         action='store',
@@ -837,20 +960,15 @@ def add_conditions_args(parser):
     g = parser.add_argument_group('conditions')
     g.add_argument('-v', '--mv',
         action='store',
-        required=True,
         type=float,
         help='Initial velocity')
     g.add_argument('-a', '--altitude',
         action='store',
-        required=False,
         type=float,
-        default=0.0001,
         help='Initial altitude (default 0)')
     g.add_argument('--air-density-factor',
         action='store',
-        required=False,
         type=float,
-        default=1.0,
         help='Air density adjustment factor (default 1.0)')
 
 
@@ -858,21 +976,16 @@ def add_common_args(parser):
     g = parser.add_argument_group('common options')
     g.add_argument('--config',
         action='store',
-        required=False,
         help='Config file')
     g.add_argument('--write-config',
         action='store',
-        required=False,
         help='Write config from the command line to a file')
     g.add_argument('-I', '--timestep',
         action='store',
-        required=False,
         type=float,
-        default=0.1,
         help="Simulation timestep")
     g.add_argument('--tolerance',
         action='store',
-        required=False,
         type=float,
         default=1.0,
         help='Convergance tolerance')
@@ -882,14 +995,13 @@ def add_match_args(parser):
     g.add_argument('-l', '--departure-angle',
         action='store',
         type=float,
-        default=45.0,
         help="Departure Angle")
     g.add_argument('--target-range',
         action='store',
         type=float,
         help='Target range')
 
-def add_form_factors(parser, required=True):
+def add_form_factors(parser, required=False):
     g = parser.add_argument_group('form factors')
     gme = g.add_mutually_exclusive_group(required=required)
     gme.add_argument('-f', '--form-factor',
@@ -909,7 +1021,13 @@ def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     # some global defaults . . .
     parser.set_defaults(
-        show_trajectory=False
+        show_trajectory=False,
+        mass=None,
+        mv=None,
+        caliber=None,
+        form_factor=None,
+        F=None,
+        drag_function=None,
     )
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
