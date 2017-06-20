@@ -1,0 +1,6 @@
+master_exterior_ballistics/version.py
+*.egg-info
+*.pyc
+*.swp
+build/
+dist/
