@@ -31,6 +31,7 @@ import math
 from ConfigParser import SafeConfigParser as cfgparser
 from os import listdir
 from os import path
+from master_exterior_ballistics import version
 import pkg_resources
 import sys
 
@@ -902,8 +903,9 @@ def match_range_args(subparser):
         help="Find the departure angle to achieve the specified target range")
     g = parser.add_argument_group('match multiple shots')
     g.add_argument('--target-range',
-        action='append',
+        action='store',
         required=False,
+        nargs='+',
         metavar='RANGE',
         help=(
             'Set of target ranges - may be used more than once, with each '
@@ -929,9 +931,10 @@ def find_ff_args(subparser):
     add_conditions_args(parser)
     g = parser.add_argument_group('match multiple shots')
     g.add_argument('--shot',
-        action='append',
+        action='store',
         required=False,
         metavar='A,R',
+        nargs='+',
         help=(
             'Set of <angle,range> tuples - may be used more than once, with '
             'each tuple being simulated'
@@ -1093,7 +1096,8 @@ def add_form_factors(parser, required=False):
         type=float,
         help='Projectile form factor')
     gme.add_argument('-F',
-        action='append',
+        action='store',
+        nargs='+',
         metavar='FF,A',
         help=(
             '(form factor, departure angle) tuple - used to specify a set of'
@@ -1119,6 +1123,11 @@ def parse_args():
         departure_angle=None,
         save_to_config=None,
     )
+    parser.add_argument('-V', '--version',
+        action='version',
+        version="Master Exterior Ballistics version %s" % (version.__version__),
+        help='Print program version information')
+
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
 
