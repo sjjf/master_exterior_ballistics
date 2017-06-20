@@ -862,8 +862,8 @@ def make_config(args):
 
 def config_args(subparser):
     parser = subparser.add_parser('make-config',
-        description="Make a configuration file",
-        help="Config file mode")
+        description="Create a configuration file with the specified contents",
+        help="Create a config file")
     g = parser.add_argument_group('config file details')
     g.add_argument('--filename',
         action='store',
@@ -878,7 +878,7 @@ def config_args(subparser):
 def single_args(subparser):
     parser = subparser.add_parser('single',
         description="Simulate a single shot",
-        help="Single shot mode")
+        help="Simulate a single shot")
     g = parser.add_argument_group('shot specifics')
     g.add_argument('-l', '--departure-angle',
         action='store',
@@ -919,7 +919,7 @@ def match_range_args(subparser):
 def find_ff_args(subparser):
     parser = subparser.add_parser('find-ff',
         description="Match the shot(s) specified by adjusting the form fator",
-        help="Find the form factor to achieve the specified target range")
+        help="Find the form factor to match the specified shots")
     parser.add_argument('--save-to-config',
         action='store',
         required=False,
