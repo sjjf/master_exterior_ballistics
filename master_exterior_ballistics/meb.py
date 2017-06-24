@@ -657,38 +657,48 @@ class Projectile(object):
             self.count += 1
         return (ff, l, rg)
 
-    def print_configuration(self):
-        print "Projectile Configuration:"
-        print " Mass: %.3fkg" % (self.mass)
-        print " Caliber: %.3fmm" % (self.caliber)
+    def format_configuration(self):
+        text = "Projectile Configuration:\n"
+        text += " Mass: %.3fkg\n" % (self.mass)
+        text += " Caliber: %.3fmm\n" % (self.caliber)
         # we want to list something meaningful here, if at all possible
         if len(self.departure_angles) == 1:
-            print " Form Factor: %.4f" % (self.form_factors[0])
+            text += " Form Factor: %.4f\n" % (self.form_factors[0])
         elif len(self.departure_angles) > 1:
-            print " Form Factor data:"
+            text += " Form Factor data:\n"
             i = 0
             while i < len(self.departure_angles):
-                print "  %.4fdeg: %.6f" % (math.degrees(self.departure_angles[i]),
+                text += "  %.4fdeg: %.6f\n" % (math.degrees(self.departure_angles[i]),
                                            self.form_factors[i])
                 i += 1
         if self.drag_function_file:
-            print " Drag Function from file %s" % (self.drag_function_file)
+            text += " Drag Function from file %s\n" % (self.drag_function_file)
         else:
-            print " Drag Function: %s" % (self.drag_function)
-        print " Density Function: %s" % (self.density_function)
+            text += " Drag Function: %s\n" % (self.drag_function)
+        text += " Density Function: %s\n" % (self.density_function)
         # we don't want to do this calculation here, so we cache it if it's already
         # been done and use that value
         if self.Max_Range:
-            print "Est. max range: %.1fm at %.4fdeg" % (self.Max_Range[0],
+            text += "Est. max range: %.1fm at %.4fdeg\n" % (self.Max_Range[0],
                                                         math.degrees(self.Max_Range[1]))
+        return text
 
-    def print_initial_conditions(self):
-        print "Initial Conditions:"
-        print " Velocity: %.3fm/s" % (self.mv)
+    def print_configuration(self):
+        text = self.format_configuration()
+        print text
+
+    def format_initial_conditions(self):
+        text = "Initial Conditions:\n"
+        text += " Velocity: %.3fm/s\n" % (self.mv)
         # departure angle isn't always set
         if self.departure_angle:
-            print " Departure Angle: %.4fdeg" % (math.degrees(self.departure_angle))
-        print " Air Density Factor: %.6f" % (self.air_density_factor)
+            text += " Departure Angle: %.4fdeg\n" % (math.degrees(self.departure_angle))
+        text += " Air Density Factor: %.6f\n" % (self.air_density_factor)
+        return text
+
+    def print_initial_conditions(self):
+        text = self.format_initial_conditions()
+        print text
 
 
 def single_run(args):
