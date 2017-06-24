@@ -494,25 +494,30 @@ class Projectile(object):
         return (FH, FV, V3, L3)
 
     # for Reasons this takes an argument rather than using the copy we own
-    def print_trajectory(self, trajectory=None):
+    def format_trajectory(self, trajectory=None):
         if not self.show_trajectory:
-            return
+            return ""
         if not trajectory:
             trajectory = self.Traj
-        print "Time Range Height Angle Vel"
+        text = "Time Range Height Angle Vel\n"
         if len(trajectory) < 1:
-            return
+            return text
         (ta, ttt, tr, tv, tl) = trajectory[0]
         del trajectory[0]
         count = 1
-        print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
+        text += "%.2f %.2f %.2f %.2f %.2f\n" % (ttt, tr, ta, math.degrees(tl), tv)
         for (ta, ttt, tr, tv, tl) in trajectory:
-            print "%.2f %.2f %.2f %.2f %.2f" % (ttt, tr, ta, math.degrees(tl), tv)
+            text += "%.2f %.2f %.2f %.2f %.2f\n" % (ttt, tr, ta, math.degrees(tl), tv)
             if count == 5:
                 count = 0
-                print ""
+                text += "\n"
             count += 1
-        print ""
+        text += "\n"
+        return text
+
+    def print_trajectory(self, trajectory=None):
+        text = self.format_trajectory(trajectory)
+        print text
 
     def one_shot(self, l=None):
         if not l:
