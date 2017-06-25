@@ -36,19 +36,19 @@ meb single --config $tmp -f 0.996695 -l 35.4617
 
 echo -e "\nMatch Range\n$sep\n"
 
-meb match-range --config $tmp --target-range 1500 -F 15,0.87 -F 20,0.9
+meb match-range --config $tmp --target-range 15000 -F 15,0.87 20,0.9
 
 echo -e "\nFind Form Factors\n$sep\n"
 
 meb find-ff --config $tmp \
     --shot 2.3,4572 \
-    --shot 5.1,9144 \
-    --shot 8.5,13716 \
-    --shot 12.5,18288 \
-    --shot 17.5,22860 \
-    --shot 23.7,27432 \
-    --shot 32.4,32004 \
-    --shot 39.2,34290
+           5.1,9144 \
+           8.5,13716 \
+           12.5,18288 \
+           17.5,22860 \
+           23.7,27432 \
+           32.4,32004 \
+           39.2,34290
 
 echo -e "\nRange Table (range increment)\n$sep\n"
 
