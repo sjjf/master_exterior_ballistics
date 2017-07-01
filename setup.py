@@ -52,7 +52,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'meb = master_exterior_ballistics.meb:main',
+            'meb = master_exterior_ballistics.cli:main',
         ],
     },
     )
