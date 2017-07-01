@@ -1,6 +1,20 @@
 #!/bin/bash
 
-sep="-----------------------------------------------"
+function separator {
+        echo "-----------------------------------------------"
+}
+
+function header {
+        echo -e "\n$1"
+        separator
+        echo ""
+}
+
+function footer {
+        echo ""
+        separator
+}
+
 tmp=`mktemp -p /tmp config.XXXX`
 cat <<EOF >$tmp
 [projectile]
@@ -28,17 +42,17 @@ air_density_factor = 1.0
 timestep = 0.1
 EOF
 
-echo -e "\nProjectile from a config file\n$sep"
+header "Projectile from a config file"
 
-echo -e "\nSingle\n$sep\n"
+header "Single"
 
 meb single --config $tmp -f 0.996695 -l 35.4617
 
-echo -e "\nMatch Range\n$sep\n"
+header "Match Range"
 
 meb match-range --config $tmp --target-range 15000 -F 15,0.87 20,0.9
 
-echo -e "\nFind Form Factors\n$sep\n"
+header "Find Form Factors"
 
 meb find-ff --config $tmp \
     --shot 2.3,4572 \
@@ -50,24 +64,24 @@ meb find-ff --config $tmp \
            32.4,32004 \
            39.2,34290
 
-echo -e "\nRange Table (range increment)\n$sep\n"
+header "Range Table (range increment)"
 
 meb range-table --config $tmp \
     --start 4572 \
     --end 35000 \
     --increment 4572
 
-echo -e "\nRange Table (angle increment)\n$sep\n"
+header "Range Table (angle increment)"
 
 meb range-table-angle --config $tmp \
     --start 5 \
     --end 45 \
     --increment 5
 
-echo -e "\nMax Range\n$sep\n"
+header "Max Range"
 
 meb max-range --config $tmp
 
-echo -e "\n$sep\n"
+footer
 
-#rm -f $tmp
+rm -f $tmp

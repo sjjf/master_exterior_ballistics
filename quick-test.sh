@@ -1,14 +1,28 @@
 #!/bin/bash
 
-sep="-----------------------------------------------"
-echo -e "\nVery basic functionality tests\n$sep"
+function separator {
+        echo "-----------------------------------------------"
+}
 
-echo -e "\nSingle\n$sep\n"
+function header {
+        echo -e "\n$1"
+        separator
+        echo ""
+}
+
+function footer {
+        echo ""
+        separator
+}
+
+header "Very basic functionality tests"
+
+header "Single"
 
 meb single -m 928.927 -c 406.4 -v 769.62 -l 35.4617 \
     -f 0.996695 --drag-function KD8 --density-function UK
 
-echo -e "\nMatch Range\n$sep\n"
+header "Match Range"
 
 meb match-range -v 769.62 -m 928.927 -c 406.4 \
     --drag-function KD8 \
@@ -16,7 +30,7 @@ meb match-range -v 769.62 -m 928.927 -c 406.4 \
     --target-range 15000 \
     -F 15,0.87 20,0.9
 
-echo -e "\nFind Form Factors\n$sep\n"
+header "Find Form Factors"
 
 meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -29,7 +43,7 @@ meb find-ff -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
            32.4,32004 \
            39.2,34290
 
-echo -e "\nRange Table (range increment)\n$sep\n"
+header "Range Table (range increment)"
 
 meb range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -45,7 +59,7 @@ meb range-table -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --end 35000 \
     --increment 4572
 
-echo -e "\nRange Table (angle increment)\n$sep\n"
+header "Range Table (angle increment)"
 
 meb range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -61,7 +75,7 @@ meb range-table-angle -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --end 45 \
     --increment 5
 
-echo -e "\nMax Range\n$sep\n"
+header "Max Range"
 
 meb max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
     --density-function UK \
@@ -74,4 +88,4 @@ meb max-range -m 928.927 -c 406.4 -v 769.62 --drag-function KD8 \
        32.4,0.989613 \
        39.2,1.002287
 
-echo -e "\n$sep\n"
+footer
