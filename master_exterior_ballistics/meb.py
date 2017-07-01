@@ -158,6 +158,28 @@ class Projectile(object):
         'drag_function': 'KD8',
     }
 
+    # for all the stuff that doesn't have a meaningful default value, but which
+    # we need to have /some/ idea about so we can fake up a projectile for
+    # interative use.
+    _default_attributes = {
+        'mass': 0.0,
+        'caliber': 0.0,
+        'mv': 0.0,
+        'form_factor': None,
+        'F': None,
+        'departure_angle': None,
+        'drag_function_file': None,
+        'tolerance': 1.0,
+        'target_range': None,
+        'shot': None,
+        'increment': 1.0,
+        'start': None,
+        'end': None,
+        'filename': None,
+        'config': None,
+        'save_to_config': None,
+    }
+
     _wrapper_in = {
         'mass': float,
         'caliber': float,
@@ -173,25 +195,34 @@ class Projectile(object):
         'departure_angle': rad2str,
     }
 
+    @classmethod
+    def make_args(cls):
+        args = argparse.Namespace()
+        for (attr, value) in cls._defaults.items():
+            setattr(args, attr, value)
+        for (attr, value) in cls._default_attributes.items():
+            setattr(args, attr, value)
+        return args
+
     def __init__(self, args):
         self.load_config(args)
         self.set_atmosphere(args)
         self.load_drag_function(args)
         self.load_form_factors(args)
 
-        if args.altitude:
+        if isinstance(args.altitude, float):
             self.altitude = args.altitude
-        if args.departure_angle:
+        if isinstance(args.departure_angle, float):
             self.departure_angle = math.radians(args.departure_angle)
-        if args.mv:
+        if isinstance(args.mv, float):
             self.mv = args.mv
-        if args.caliber:
+        if isinstance(args.caliber, float):
             self.caliber = args.caliber
-        if args.air_density_factor:
+        if isinstance(args.air_density_factor, float):
             self.air_density_factor = args.air_density_factor
-        if args.mass:
+        if isinstance(args.mass, float):
             self.mass = args.mass
-        if args.timestep:
+        if isinstance(args.timestep, float):
             self.timestep = args.timestep
         if args.show_trajectory:
             self.show_trajectory = args.show_trajectory
@@ -208,7 +239,7 @@ class Projectile(object):
             # as False in the simple boolean context
             if isinstance(t, list):
                 pass
-            elif not t:
+            elif t is None:
                 invalid = True
                 missing.append(attr)
         if invalid:
@@ -279,6 +310,12 @@ class Projectile(object):
                     except KeyError:
                         pass
                     setattr(self, attr, value)
+
+    # a few things are cached, and we need to invalidate those things in order
+    # to make sure that we don't have stuff carried over during processing
+    def invalidate(self):
+        self.Max_range = None
+        self.Traj = None
 
     # these are the only things that change during the lifetime of the
     # projectile object
@@ -473,6 +510,12 @@ class Projectile(object):
         ff1 = self.form_factors[i-1]
         ff2 = self.form_factors[i]
         return interpolate(da, da1, da2, ff1, ff2)
+
+    def format_form_factors(self):
+        text = ""
+        for (da, ff) in zip(self.departure_angles, self.form_factors):
+            text += "%.4f: %.6f\n" % (da, ff)
+        return text
 
     # this doesn't fit with the definition from the paper, but the number we
     # get from the code is less than 1 - I'm guessing it's just a question of
