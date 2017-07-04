@@ -29,6 +29,7 @@
 import argparse
 from master_exterior_ballistics import commands
 from master_exterior_ballistics import projectile
+from master_exterior_ballistics import arguments
 from master_exterior_ballistics import version
 import sys
 
@@ -103,27 +104,7 @@ class MakeConfigCLI(CLIMixin, commands.MakeConfig):
 
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    # some global defaults . . .
-    #
-    # these are largely so that these attributes will always exist in the args
-    # namespace, rather than needing to check to see if they're there and then
-    # check whether they're set to something meaningful
-    parser.set_defaults(
-        show_trajectory=False,
-        mass=None,
-        mv=None,
-        caliber=None,
-        form_factor=None,
-        F=None,
-        drag_function=None,
-        departure_angle=None,
-        save_to_config=None,
-    )
-    parser.add_argument('-V', '--version',
-        action='version',
-        version="Master Exterior Ballistics version %s" % (version.__version__),
-        help='Print program version information')
-
+    arguments.set_common_defaults(parser)
     subparsers = parser.add_subparsers(title="Modes of operation",
         description="<mode> -h/--help for mode help")
 

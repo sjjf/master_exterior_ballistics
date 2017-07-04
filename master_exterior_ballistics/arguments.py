@@ -1,4 +1,5 @@
 from master_exterior_ballistics.projectile import Projectile
+from master_exterior_ballistics import version
 
 
 # common argument handling
@@ -93,3 +94,31 @@ def add_form_factors(parser, required=False):
             ' form factors that will be used to determine the form factor'
             ' for a given shot by interpolation'
         ))
+
+
+# some global defaults . . .
+#
+# these are largely so that these attributes will always exist in the args
+# namespace, rather than needing to check to see if they're there and then
+# check whether they're set to something meaningful
+def set_common_defaults(parser):
+    parser.set_defaults(
+        show_trajectory=False,
+        mass=None,
+        mv=None,
+        caliber=None,
+        form_factor=None,
+        F=None,
+        altitude=None,
+        air_density_factor=None,
+        drag_function=None,
+        drag_function_file=None,
+        departure_angle=None,
+        save_to_config=None,
+        density_function=None,
+        timestep=None,
+    )
+    parser.add_argument('-V', '--version',
+        action='version',
+        version="Master Exterior Ballistics version %s" % (version.__version__),
+        help='Print program version information')

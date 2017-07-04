@@ -27,6 +27,12 @@ class Command(object):
         header += self.projectile.format_initial_conditions()
         return header
 
+    def format_configuration(self):
+        return self.projectile.format_configuration()
+
+    def format_conditions(self):
+        return self.projectile.format_initial_conditions()
+
     def format_output(self):
         raise NotImplementedError
 
