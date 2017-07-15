@@ -577,6 +577,7 @@ class Projectile(object):
         rg = 0.0
         alt = self.altitude
         mv = self.mv
+        self.Traj = []
         self.Traj.append((alt, tt, rg, mv, l))
         while alt >= 0.0:
             (FH, FV, V, L) = self.step(alt, mv, l, C)
