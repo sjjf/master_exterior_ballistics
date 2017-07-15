@@ -91,7 +91,8 @@ class SingleRun(Command):
 class MaxRange(Command):
 
     def format_output(self):
-        text = "Maximum range: %.2fm\n" % (self.rg_max)
+        text = "Initial Velocity: %.4fm/s\n" % (self.projectile.mv)
+        text += "Maximum range: %.2fm\n" % (self.rg_max)
         text += "Departure Angle for maximum range: %.4fdeg\n" % (math.degrees(self.da))
         return text
 
