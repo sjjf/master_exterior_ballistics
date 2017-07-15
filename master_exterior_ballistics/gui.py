@@ -171,6 +171,10 @@ class ProjectileCntl(object):
             tkmb.showwarning("Conversion Error", "%s" % (e))
 
     def get_projectile(self):
+        self.update()
+        self.projectile.mass = self.mass
+        self.projectile.caliber = self.caliber
+        self.projectile.mv = self.mv
         return self.projectile
 
 
@@ -192,6 +196,8 @@ class CommandCntl(object):
 
         self._singlerun = SingleRunGUI(master, pcntl)
         master.add(self._singlerun.setup_display(), text="Single Run")
+        self._maxrange = MaxRangeGUI(master, pcntl)
+        master.add(self._maxrange.setup_display(), text="Max Range")
 
     def single(self):
         pass
@@ -208,9 +214,9 @@ class CommandCntl(object):
 # implies a mechanism for saving the actual output to a file or similar, and
 # resetting the output as required.
 #
-# On top of that, we need to be able to accept at least a few events from the
-# rest of the app, the most important of which is when the user has updated the
-# definition of the current projectile.
+# Communication with the rest of the app will be a pull process - when the user
+# clicks the button to run the analysis, the command object will update the
+# projectile with anything necessary for the processing.
 class GUIMixin(object):
     def __init__(self, master, pcntl):
         self.master = master
@@ -219,7 +225,14 @@ class GUIMixin(object):
         super(GUIMixin, self).__init__()
 
     def setup_display(self):
-        raise NotImplemented
+        if self.frame:
+            # start by tossing all the existing widgets (I think?)
+            for child in self.frame.pack_slaves():
+                child.pack_forget()
+        else:
+            self.frame = tk.Frame(self.master)
+            self.frame.pack(side=tk.TOP)
+        return self.frame
 
     def process_gui(self):
         raise NotImplemented
@@ -231,7 +244,8 @@ class GUIMixin(object):
         raise NotImplemented
 
     def reset_output(self):
-        raise NotImplemented
+        self.undo.append(self.output.get(1.0, tk.END))
+        self.output.delete(1.0, tk.END)
 
     def reset_projectile(self):
         raise NotImplemented
@@ -247,18 +261,11 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
     def setup_display(self):
         # we want a frame at the top with the two inputs, and a "run" button
         # which gets connected to the process_gui() method
+        super(SingleRunGUI, self).setup_display()
 
         # we're resetting the whole display, so we need to clear the
         # config_printed flag
         self.config_printed = False
-
-        if self.frame:
-            # start by tossing all the existing widgets (I think?)
-            for child in self.frame.pack_slaves():
-                child.pack_forget()
-        else:
-            self.frame = tk.Frame(self.master)
-            self.frame.pack(side=tk.TOP)
         t = tk.Frame(self.frame)
         t.pack(side=tk.TOP)
         daf = tk.LabelFrame(t, text="Departure Angle")
@@ -287,7 +294,8 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         except ValueError as e:
             tkmb.showwarning("Conversion Error", "%s" % (e))
             return
-        if self._print_trajectory:
+        self.projectile.show_trajectory = False
+        if self._print_trajectory.get() != 0:
             self.projectile.show_trajectory = True
         self.run_analysis()
         text = ""
@@ -300,8 +308,37 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         self.output.insert(tk.INSERT, text)
 
     def reset_output(self):
-        self.undo.append(self.output.get(1.0, tk.END))
-        self.output.delete(1.0, tk.END)
+        super(SingleRunGUI, self).reset_output()
+        self.config_printed = False
+
+
+class MaxRangeGUI(GUIMixin, commands.MaxRange):
+    def __init__(self, master, pcntl):
+        self.frame = None
+        super(MaxRangeGUI, self).__init__(master, pcntl)
+
+    def setup_display(self):
+        # this is the simplest possible command, since all the information is
+        # in the projectile definition - we don't need to supply anything at
+        # all
+        super(MaxRangeGUI, self).setup_display()
+        t = tk.Frame(self.frame)
+        t.pack(side=tk.TOP)
+        run = tk.Button(t, text="Run Calculation", command=self.process_gui)
+        run.pack(side=tk.LEFT)
+        reset = tk.Button(t, text="Clear Output", command=self.reset_output)
+        reset.pack(side=tk.RIGHT)
+        self.output = make_output(self.frame)
+        return self.frame
+
+    def process_gui(self):
+        self.projectile = self.pcntl.get_projectile()
+        self.run_analysis()
+        text = self.format_configuration()
+        text += "\n"
+        text += self.format_output()
+        text += "\n"
+        self.output.insert(tk.INSERT, text)
 
 
 def parse_args():
