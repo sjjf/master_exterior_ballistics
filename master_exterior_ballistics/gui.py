@@ -198,6 +198,8 @@ class CommandCntl(object):
         master.add(self._singlerun.setup_display(), text="Single Run")
         self._maxrange = MaxRangeGUI(master, pcntl)
         master.add(self._maxrange.setup_display(), text="Max Range")
+        self._matchrange = MatchRangeGUI(master, pcntl)
+        master.add(self._matchrange.setup_display(), text="Match Range")
 
     def single(self):
         pass
@@ -339,6 +341,55 @@ class MaxRangeGUI(GUIMixin, commands.MaxRange):
         text += self.format_output()
         text += "\n"
         self.output.insert(tk.INSERT, text)
+
+
+class MatchRangeGUI(GUIMixin, commands.MatchRange):
+    def __init__(self, master, pcntl):
+        self.frame = None
+        # this is a bit weird, but we're currently passing data around via the
+        # args object
+        self.args = None
+        super(MatchRangeGUI, self).__init__(master, pcntl)
+
+    def setup_display(self):
+        self.config_printed = False
+        super(MatchRangeGUI, self).setup_display()
+        # input in this case is simply the target range
+        t = tk.Frame(self.frame)
+        t.pack(side=tk.TOP)
+        tr = tk.LabelFrame(t, text="Target Range")
+        tr.pack(side=tk.LEFT)
+        self._target_range = tk.Entry(tr)
+        self._target_range.insert(tk.INSERT, "0")
+        self._target_range.pack()
+        run = tk.Button(t, text="Run Calculation", command=self.process_gui)
+        run.pack(side=tk.LEFT)
+        reset = tk.Button(t, text="Clear Output", command=self.reset_output)
+        reset.pack(side=tk.RIGHT)
+        self.output = make_output(self.frame)
+        return self.frame
+
+    def process_gui(self):
+        self.projectile = self.pcntl.get_projectile()
+        self.args = self.projectile.make_args()
+        try:
+            tr = self._target_range.get()
+            tr = float(tr)
+        except ValueError as e:
+            tkmb.showwarning("Conversion Error", "%s" % (e))
+            return
+        self.args.target_range = [tr]
+        self.run_analysis()
+        text = ""
+        if not self.config_printed:
+            text = self.format_configuration()
+            self.config_printed = True
+        text += self.format_output()
+        self.output.insert(tk.INSERT, text)
+
+    def reset_output(self):
+        self.config_printed = False
+        super(MatchRangeGUI, self).reset_output()
 
 
 def parse_args():
