@@ -54,5 +54,8 @@ setup(
         'console_scripts': [
             'meb = master_exterior_ballistics.cli:main',
         ],
+        'gui_scripts': [
+            'meb-gui = master_exterior_ballistics.gui:main',
+        ],
     },
     )
