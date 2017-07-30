@@ -5,6 +5,9 @@ from master_exterior_ballistics import version
 # common argument handling
 def add_projectile_args(parser):
     g = parser.add_argument_group('projectile')
+    g.add_argument('-n', '--name',
+        action='store',
+        help='Projectile name')
     g.add_argument('-m', '--mass',
         action='store',
         type=float,

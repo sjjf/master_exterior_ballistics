@@ -178,9 +178,16 @@ class MatchRange(Command):
 
 class MatchFormFactor(Command):
 
+    def format_header(self):
+        self.projectile.clear_form_factors()
+        self.projectile.unset_departure_angle()
+        header = super(MatchFormFactor, self).format_header()
+        header += "\n"
+        header += "Form Factor Results (departure angle, form factor):\n"
+        return header
+
     def format_output(self):
-        text = "\n"
-        text += "Form Factor Results (departure angle, form factor):\n"
+        text = ""
         for (ff, l, rg, count) in self.shots:
             text += " %.4f,%.6f (%d iterations)\n" % (math.degrees(l), ff, count)
         return text
@@ -197,8 +204,6 @@ class MatchFormFactor(Command):
                 targets.append((da, tr))
         else:
             targets.append(self.projectile.departure_angle, target_range)
-        self.projectile.clear_form_factors()
-        self.projectile.unset_departure_angle()
 
         self.shots = []
         for (da, tr) in targets:

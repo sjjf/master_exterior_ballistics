@@ -82,6 +82,8 @@ class MissingAttribute(Exception):
 
 class Projectile(object):
 
+    filename = None
+    name = None
     timestep = 0.1
     altitude = None
     mass = None
@@ -129,6 +131,7 @@ class Projectile(object):
     # we need to have /some/ idea about so we can fake up a projectile for
     # interative use.
     _default_attributes = {
+        'name': "Test",
         'mass': 0.0,
         'caliber': 0.0,
         'mv': 0.0,
@@ -171,7 +174,26 @@ class Projectile(object):
             setattr(args, attr, value)
         return args
 
-    def __init__(self, args):
+    @classmethod
+    def from_defaults(cls):
+        args = Projectile.make_args()
+        return Projectile(args)
+
+    @classmethod
+    def from_file(cls, filename):
+        p = Projectile()
+        args = argparse.Namespace()
+        args.config = filename
+        p.load_config(args)
+        p.verify()
+        return p
+
+    def __init__(self, args=None):
+        # do nothing if we have no args - the caller has to do the
+        # configuration themselves
+        if not args:
+            return
+
         self.load_config(args)
         self.set_atmosphere(args)
         self.load_drag_function(args)
@@ -193,6 +215,8 @@ class Projectile(object):
             self.timestep = args.timestep
         if args.show_trajectory:
             self.show_trajectory = args.show_trajectory
+        if 'name' in args:
+            self.name = args.name
 
         self.verify()
 
@@ -224,6 +248,8 @@ class Projectile(object):
         cfg = cfgparser()
 
         cfg.add_section("projectile")
+        if self.name:
+            cfg.set("projectile", "name", self.name)
         cfg.set("projectile", "mass", repr(self.mass))
         cfg.set("projectile", "caliber", repr(self.caliber))
         if self.drag_function_file:
@@ -277,6 +303,7 @@ class Projectile(object):
                     except KeyError:
                         pass
                     setattr(self, attr, value)
+        self.filename = filename
 
     # a few things are cached, and we need to invalidate those things in order
     # to make sure that we don't have stuff carried over during processing
@@ -302,6 +329,10 @@ class Projectile(object):
     def set_atmosphere(self, args):
         if args.density_function:
             self.density_function = args.density_function
+        self._set_atmosphere(self.density_function)
+
+    def _set_atmosphere(self, df):
+        self.density_function = df
         if not self.density_function and 'density_function' in self._defaults:
             self.density_function = self._defaults['density_function']
         if self.density_function == "US":
@@ -314,6 +345,13 @@ class Projectile(object):
             self.atmosphere = atmosphere_icao
             return
         print "No atmosphere model specified?"
+
+    def set_density_function(self, df):
+        self._set_atmosphere(df)
+
+    @classmethod
+    def get_density_functions(cls):
+        return ["US", "UK", "ICAO"]
 
     def set_drag_function(self, df):
         if df in Projectile.get_drag_functions():
@@ -459,6 +497,12 @@ class Projectile(object):
         self.form_factors.append(ff)
         self.sort_form_factors()
 
+    def reset_form_factors(self, ffs):
+        tda, tff = zip(*ffs)
+        self.departure_angles = list(tda)
+        self.form_factors = list(tff)
+        self.sort_form_factors()
+
     def sort_form_factors(self):
         if len(self.departure_angles) == 0:
             return
@@ -486,10 +530,13 @@ class Projectile(object):
         ff2 = self.form_factors[i]
         return interpolate(da, da1, da2, ff1, ff2)
 
+    def copy_form_factors(self):
+        return zip(self.departure_angles, self.form_factors)
+
     def format_form_factors(self):
         text = ""
         for (da, ff) in zip(self.departure_angles, self.form_factors):
-            text += "%.4f: %.6f\n" % (da, ff)
+            text += "%.4f: %.6f\n" % (math.degrees(da), ff)
         return text
 
     # this doesn't fit with the definition from the paper, but the number we
@@ -712,6 +759,8 @@ class Projectile(object):
 
     def format_configuration(self):
         text = "Projectile Configuration:\n"
+        if self.name:
+            text += " Name: %s\n" % (self.name)
         text += " Mass: %.3fkg\n" % (self.mass)
         text += " Caliber: %.3fmm\n" % (self.caliber)
         # we want to list something meaningful here, if at all possible

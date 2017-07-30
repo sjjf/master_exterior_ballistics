@@ -41,4 +41,7 @@ meb max-range -h
 header "Make Config"
 meb make-config -h
 
+header "GUI command"
+meb-gui -h
+
 footer
