@@ -753,12 +753,15 @@ class Projectile(object):
         self.update_form_factors(l, ff)
         (_, rg, _, _) = self.one_shot(l)
         self.count = 1
-        while abs(tr - rg) > tol/2.0:
+        while abs(tr - rg) > tol/2.0 and ff > 0.000001:
             ff = ff * (rg/tr)
             self.clear_form_factors()
             self.update_form_factors(l, ff)
             (_, rg, _, _) = self.one_shot(l)
             self.count += 1
+        if ff <= 0.000001:
+            raise ValueError("Could not converge - FF at %.6f " %(ff)
+                             + "after %d iterations" % (self.count))
         return (ff, l, rg)
 
     def format_configuration(self):
