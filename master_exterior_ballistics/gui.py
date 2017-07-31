@@ -299,6 +299,9 @@ class ProjectileCntl(object):
 
     # update the GUI with the current state of the projectile
     def refresh(self):
+        self._name.delete(0, tk.END)
+        if self.projectile.name:
+            self._name.insert(tk.INSERT, self.projectile.name)
         self._mass.delete(0, tk.END)
         self._mass.insert(tk.INSERT, repr(self.projectile.mass))
         self._caliber.delete(0, tk.END)
@@ -319,6 +322,7 @@ class ProjectileCntl(object):
     def get_projectile(self):
         self.update()
         p = copy.deepcopy(self.projectile)
+        p.name = self.name
         p.mass = self.mass
         p.caliber = self.caliber
         p.mv = self.mv
@@ -351,23 +355,25 @@ def make_output(master, reset=None, save=None):
             s.pack(side=tk.RIGHT, anchor=tk.E)
     return output
 
+
 # this needs to be changed to a two paned vertical display
 class CommandCntl(object):
     def __init__(self, master, pcntl):
         self.root = master
         self.pcntl = pcntl
 
+        # The tabs show up left to right in this order
+        self._matchff = MatchFormFactorGUI(master, pcntl)
+        master.add(self._matchff.setup_display(), text="Find Form Factor")
+        self._rtr = RangeTableGUI(master, pcntl)
+        master.add(self._rtr.setup_display(), text="Range Table")
+        self._matchrange = MatchRangeGUI(master, pcntl)
+        master.add(self._matchrange.setup_display(), text="Match Range")
         self._singlerun = SingleRunGUI(master, pcntl)
         master.add(self._singlerun.setup_display(), text="Single Run")
         self._maxrange = MaxRangeGUI(master, pcntl)
         master.add(self._maxrange.setup_display(), text="Max Range")
-        self._matchrange = MatchRangeGUI(master, pcntl)
-        master.add(self._matchrange.setup_display(), text="Match Range")
-        self._matchff = MatchFormFactorGUI(master, pcntl)
-        master.add(self._matchff.setup_display(), text="Match Form Factor")
 
-    def single(self):
-        pass
 
 # As with the CLIMixin, this is implemented here as a mixin class. This code
 # takes control of a frame and adds the necessary widgets and the like, runs
@@ -385,10 +391,13 @@ class CommandCntl(object):
 # clicks the button to run the analysis, the command object will update the
 # projectile with anything necessary for the processing.
 class GUIMixin(object):
+
     def __init__(self, master, pcntl):
         self.master = master
         self.pcntl = pcntl
         self.undo = []
+        self.frame = None
+        self.args = None
         super(GUIMixin, self).__init__()
 
     def setup_display(self):
@@ -425,7 +434,6 @@ class GUIMixin(object):
 class SingleRunGUI(GUIMixin, commands.SingleRun):
 
     def __init__(self, master, pcntl):
-        self.frame = None
         super(SingleRunGUI, self).__init__(master, pcntl)
 
     # we need to take the departure angle, and a checkbox to determine whether
@@ -485,9 +493,6 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
 
 
 class MaxRangeGUI(GUIMixin, commands.MaxRange):
-    def __init__(self, master, pcntl):
-        self.frame = None
-        super(MaxRangeGUI, self).__init__(master, pcntl)
 
     def setup_display(self):
         # this is the simplest possible command, since all the information is
@@ -514,12 +519,6 @@ class MaxRangeGUI(GUIMixin, commands.MaxRange):
 
 
 class MatchRangeGUI(GUIMixin, commands.MatchRange):
-    def __init__(self, master, pcntl):
-        self.frame = None
-        # this is a bit weird, but we're currently passing data around via the
-        # args object
-        self.args = None
-        super(MatchRangeGUI, self).__init__(master, pcntl)
 
     def setup_display(self):
         self.config_printed = False
@@ -563,16 +562,13 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
 
 
 class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
-    def __init__(self, master, pcntl):
-        self.frame = None
-        self.args = None
-        self.ffs = []
-        super(MatchFormFactorGUI, self).__init__(master, pcntl)
+
+    ffs = []
 
     def setup_display(self):
         self.config_printed = False
         super(MatchFormFactorGUI, self).setup_display()
-        t = tk.LabelFrame(self.frame, text="Calculation")
+        t = tk.LabelFrame(self.frame, text="Shot to Match")
         t.pack(side=tk.TOP)
         da = tk.LabelFrame(t, text="Departure Angle")
         da.pack(side=tk.LEFT)
@@ -638,6 +634,58 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         for (da, ff) in self.ffs:
             text += "%f: %f\n" % (math.degrees(da), ff)
         text += "\n"
+        self.output.insert(tk.INSERT, text)
+
+
+class RangeTableGUI(GUIMixin, commands.RangeTable):
+
+    def setup_display(self):
+        self.config_printed = False
+        super(RangeTableGUI, self).setup_display()
+        t = tk.LabelFrame(self.frame, text="Settings")
+        t.pack(side=tk.TOP)
+        start = tk.LabelFrame(t, text="Start Range")
+        start.pack(side=tk.LEFT)
+        self._start = tk.Entry(start)
+        self._start.insert(tk.INSERT, "0")
+        self._start.pack()
+        end = tk.LabelFrame(t, text="End Range")
+        end.pack(side=tk.LEFT)
+        self._end = tk.Entry(end)
+        self._end.insert(tk.INSERT, "0")
+        self._end.pack()
+        inc = tk.LabelFrame(t, text="Increment")
+        inc.pack(side=tk.LEFT)
+        self._inc = tk.Entry(inc)
+        self._inc.insert(tk.INSERT, "0")
+        self._inc.pack()
+        run = tk.Button(t, text="Run", command=self.process_gui)
+        run.pack(side=tk.TOP)
+        self.output = make_output(self.frame,
+                                  reset=self.reset_output,
+                                  save=self.save_output)
+        return self.frame
+
+    def process_gui(self):
+        self.projectile = self.pcntl.get_projectile()
+        self.args = self.projectile.make_args()
+        try:
+            start = self._start.get()
+            start = float(start)
+            end = self._end.get()
+            end = float(end)
+            inc = self._inc.get()
+            inc = float(inc)
+        except ValueError as e:
+            tkmb.showwarning("Conversion Error", "%s" % (e))
+            return
+        self.args.start = start
+        self.args.end = end
+        self.args.increment = inc
+        self.run_analysis()
+        text = self.format_header()
+        text += "\n"
+        text += self.format_output()
         self.output.insert(tk.INSERT, text)
 
 
