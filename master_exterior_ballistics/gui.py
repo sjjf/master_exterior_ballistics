@@ -698,6 +698,7 @@ def parse_args():
 
 def main():
     root = tk.Tk()
+    root.title("Master Exterior Ballistics")
 
     args = parse_args()
 
