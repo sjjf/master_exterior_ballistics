@@ -21,6 +21,7 @@ from master_exterior_ballistics import version
 # I'll stick with pretty much the same output format as the command line
 # interface, but I'd like to add graphs where possible.
 
+
 def add_entry(frame, label, default="0", side=tk.TOP):
     t = tk.LabelFrame(frame, text=label)
     t.pack(side=side, anchor=tk.W)
@@ -29,12 +30,26 @@ def add_entry(frame, label, default="0", side=tk.TOP):
     e.pack()
     return e
 
+
 def popup_message(label, message):
     top = tk.Toplevel()
     t = tk.LabelFrame(top, text=label)
     t.pack()
     m = tk.Message(t, text=message)
     m.pack()
+
+
+title = "Master Exterior Ballistics"
+title_with = title + " - %s"
+
+master_window = None
+def set_title(name=None, filename=None):
+    if name:
+        master_window.title(title_with % (name))
+    elif filename:
+        master_window.title(title_with % (filename))
+    else:
+        master_window.title(title)
 
 
 # Back to design thinking . . .
@@ -64,6 +79,8 @@ class App(object):
     def __init__(self, master, proj):
 
         self.last_savefile = None
+        global master_window
+        master_window = master
 
         self.menu = tk.Frame(master)
         self.menu.pack(side=tk.TOP, anchor=tk.W)
@@ -105,6 +122,7 @@ class App(object):
             return
         self.last_savefile = filename
         proj.to_config(self.last_savefile)
+        set_title(proj.name, filename)
 
     def load_projectile(self):
         filename = ""
@@ -121,6 +139,7 @@ class App(object):
             proj = projectile.Projectile.from_file(filename)
             self.pcntl.set_projectile(proj)
             self.last_savefile = filename
+            set_title(proj.name, filename)
         except projectile.MissingAttribute as e:
             tkmb.showerror("Invalid Config File",
                            message="Could not load file %s: %s" % (filename, e))
@@ -289,6 +308,7 @@ class ProjectileCntl(object):
         else:
             self._adf.insert(tk.INSERT, "1.0")
         self._adf.pack()
+        set_title(proj.name, proj.filename)
 
     def update_projectile(self, proj):
         self.projectile = proj
@@ -312,6 +332,7 @@ class ProjectileCntl(object):
         self.drag_function = self._drag_function.get()
         self.density_function = self._density_function.get()
         self.name = self._name.get()
+        set_title(self.name)
 
     # update the GUI with the current state of the projectile
     def refresh(self):
@@ -334,6 +355,7 @@ class ProjectileCntl(object):
         self._density_function.insert(tk.INSERT, self.projectile.density_function)
         self._adf.delete(0, tk.END)
         self._adf.insert(tk.INSERT, self.projectile.air_density_factor)
+        set_title(self.projectile.name, self.projectile.filename)
 
     def get_projectile(self):
         self.update()
