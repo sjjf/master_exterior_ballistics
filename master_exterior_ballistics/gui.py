@@ -147,6 +147,7 @@ class App(object):
     def new_projectile(self):
         proj = projectile.Projectile.from_defaults()
         self.pcntl.set_projectile(proj)
+        set_title(proj.name)
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -281,7 +282,7 @@ class ProjectileCntl(object):
         self.std_drag_functions = projectile.Projectile.get_drag_functions()
         values = self.std_drag_functions
         values.append("Specify File")
-        self._drag_function = tk.Spinbox(t, values=values)
+        self._drag_function = ttk.Combobox(t, values=values)
         self._drag_function.delete(0, tk.END)
         if proj.drag_function_file:
             self._drag_function.insert(tk.INSERT, proj.drag_function_file)
@@ -295,7 +296,7 @@ class ProjectileCntl(object):
         t = tk.LabelFrame(master, text="Density Function")
         t.pack(side=tk.TOP, anchor=tk.W)
         values = projectile.Projectile.get_density_functions()
-        self._density_function = tk.Spinbox(t, values=values)
+        self._density_function = ttk.Combobox(t, values=values)
         self._density_function.delete(0, tk.END)
         if proj.density_function:
             self._density_function.insert(tk.INSERT, proj.density_function)
@@ -332,7 +333,7 @@ class ProjectileCntl(object):
         self.drag_function = self._drag_function.get()
         self.density_function = self._density_function.get()
         self.name = self._name.get()
-        set_title(self.name)
+        set_title(self.name, self.projectile.filename)
 
     # update the GUI with the current state of the projectile
     def refresh(self):

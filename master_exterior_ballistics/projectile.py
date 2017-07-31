@@ -131,7 +131,7 @@ class Projectile(object):
     # we need to have /some/ idea about so we can fake up a projectile for
     # interative use.
     _default_attributes = {
-        'name': "Test",
+        'name': "",
         'mass': 0.0,
         'caliber': 0.0,
         'mv': 0.0,
