@@ -83,7 +83,7 @@ class MissingAttribute(Exception):
 class Projectile(object):
 
     filename = None
-    name = None
+    name = ""
     timestep = 0.1
     altitude = None
     mass = None
@@ -498,6 +498,10 @@ class Projectile(object):
         self.sort_form_factors()
 
     def reset_form_factors(self, ffs):
+        if len(ffs) == 0:
+            self.departure_angles = []
+            self.form_factors = []
+            return
         tda, tff = zip(*ffs)
         self.departure_angles = list(tda)
         self.form_factors = list(tff)

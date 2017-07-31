@@ -103,6 +103,7 @@ class App(object):
                                           ])
         if filename == "":
             return
+        self.last_savefile = filename
         proj.to_config(self.last_savefile)
 
     def load_projectile(self):
@@ -129,17 +130,11 @@ class App(object):
         self.pcntl.set_projectile(proj)
 
 
-# our master is the top level left panel frame
-class ProjectileCntl(object):
-    def __init__(self, master, proj):
-        self.root = master
-        self.projectile = proj
+# this is broken out so that it can be reused in multiple contexts
+class FFDisplay(object):
+    def __init__(self, master):
+        self.ffs = []
         self.ff_ids = {}
-
-        self._name = add_entry(master, "Name", default=proj.name)
-        self._mass = add_entry(master, "Mass", default=proj.mass)
-        self._caliber = add_entry(master, "Caliber", default=proj.caliber)
-        self._mv = add_entry(master, "Muzzle Velocity", default=proj.mv)
 
         # this is a bit klunky, but then so is everything here . . .
         #
@@ -191,11 +186,73 @@ class ProjectileCntl(object):
 
         f = tk.Frame(t)
         f.pack(side=tk.BOTTOM, anchor=tk.W)
-        b = tk.Button(f, text="Clear All", command=self.clear_ff)
+        b = tk.Button(f, text="Clear All", command=self.clear_ffs)
         b.pack(side=tk.LEFT)
         b = tk.Button(f, text="Delete", command=self.delete_ff)
         b.pack(side=tk.RIGHT, anchor=tk.E)
 
+    def set_ffs(self, ffs):
+        self.ffs = ffs
+        self.show_ffs()
+
+    def get_ffs(self):
+        return self.ffs
+
+    def clear_ffs(self):
+        self.ffs = []
+        self.show_ffs()
+
+    def show_ffs(self):
+        for iid in self.ff_ids.keys():
+            self.tree.delete(iid)
+        self.ff_ids = {}
+        for (da, ff) in self.ffs:
+            t = self.tree.insert("", "end",
+                    text="%.4f" % (math.degrees(da)),
+                    values=("%.6f" %(ff)))
+            self.ff_ids[t] = da
+
+    def add_ff(self):
+        da = float(self._da.get())
+        self._da.delete(0, tk.END)
+        self._da.insert(tk.INSERT, "0")
+        ff = float(self._ff.get())
+        self._ff.delete(0, tk.END)
+        self._ff.insert(tk.INSERT, "0")
+        self.ffs.append((math.radians(da), ff))
+        self.show_ffs()
+
+    def delete_ff(self):
+        iid = self.tree.focus()
+        if not iid:
+            return
+        tda = self.ff_ids[iid]
+        t = []
+        found = False
+        for (da, ff) in self.ffs:
+            # this is safe because tda and da come from the same source
+            #
+            # note that we only want to delete /one/ of these - the user may
+            # have accidentally added multiple copies, and only wants to delete
+            # one
+            if tda == da and not found:
+                found = True
+                continue
+            t.append((da, ff))
+        self.ffs = t
+        self.show_ffs()
+
+
+# our master is the top level left panel frame
+class ProjectileCntl(object):
+    def __init__(self, master, proj):
+        self.root = master
+        self.projectile = proj
+
+        self._name = add_entry(master, "Name", default=proj.name)
+        self._mass = add_entry(master, "Mass", default=proj.mass)
+        self._caliber = add_entry(master, "Caliber", default=proj.caliber)
+        self._mv = add_entry(master, "Muzzle Velocity", default=proj.mv)
         # more klunkiness . . .
         #
         # We have a label frame wrapping everything, then a spin box listing the known drag function options, with the option of setting your own filename (by editing the value directly).
@@ -212,6 +269,9 @@ class ProjectileCntl(object):
         else:
             self._drag_function.insert(tk.INSERT, proj.drag_function)
         self._drag_function.pack()
+
+        self._ff_display = FFDisplay(master)
+        self._ff_display.set_ffs(proj.copy_form_factors())
 
         t = tk.LabelFrame(master, text="Density Function")
         t.pack(side=tk.TOP, anchor=tk.W)
@@ -230,55 +290,10 @@ class ProjectileCntl(object):
             self._adf.insert(tk.INSERT, "1.0")
         self._adf.pack()
 
-        self.show_ff()
-
     def update_projectile(self, proj):
         self.projectile = proj
         self.refresh()
         pass
-
-    def clear_ff(self):
-        self.projectile.clear_form_factors()
-        self.show_ff()
-
-    def add_ff(self):
-        da = float(self._da.get())
-        self._da.delete(0, tk.END)
-        self._da.insert(tk.INSERT, "0")
-        ff = float(self._ff.get())
-        self._ff.delete(0, tk.END)
-        self._ff.insert(tk.INSERT, "0")
-        self.projectile.update_form_factors(math.radians(da), ff)
-        self.show_ff()
-
-    def delete_ff(self):
-        iid = self.tree.focus()
-        tda = self.ff_ids[iid]
-        ffs = self.projectile.copy_form_factors()
-        t = []
-        for (da, ff) in ffs:
-            # this is safe because tda and da come from the same source
-            if tda == da:
-                continue
-            t.append((da, ff))
-        self.projectile.reset_form_factors(t)
-        self.show_ff()
-
-    def replace_ff(self):
-        self.clear_ff()
-        self.add_ff()
-        self.show_ff()
-
-    def show_ff(self):
-        for iid in self.ff_ids.keys():
-            self.tree.delete(iid)
-        self.ff_ids = {}
-        ffs = self.projectile.copy_form_factors()
-        for (da, ff) in ffs:
-            t = self.tree.insert("", "end",
-                    text="%.4f" % (math.degrees(da)),
-                    values=("%.6f" %(ff)))
-            self.ff_ids[t] = da
 
     def replace_drag_function(self):
         df = self._drag_function.get()
@@ -293,6 +308,7 @@ class ProjectileCntl(object):
             self.adf = float(self._adf.get())
         except ValueError as e:
             tkmb.showwarning("Conversion Error", "%s" % (e))
+        self.ffs = self._ff_display.get_ffs()
         self.drag_function = self._drag_function.get()
         self.density_function = self._density_function.get()
         self.name = self._name.get()
@@ -308,6 +324,7 @@ class ProjectileCntl(object):
         self._caliber.insert(tk.INSERT, repr(self.projectile.caliber))
         self._mv.delete(0, tk.END)
         self._mv.insert(tk.INSERT, repr(self.projectile.mv))
+        self._ff_display.set_ffs(self.projectile.copy_form_factors())
         self._drag_function.delete(0, tk.END)
         if self.projectile.drag_function_file:
             self._drag_function.insert(tk.INSERT, self.projectile.drag_function_file)
@@ -317,7 +334,6 @@ class ProjectileCntl(object):
         self._density_function.insert(tk.INSERT, self.projectile.density_function)
         self._adf.delete(0, tk.END)
         self._adf.insert(tk.INSERT, self.projectile.air_density_factor)
-        self.show_ff()
 
     def get_projectile(self):
         self.update()
@@ -326,6 +342,7 @@ class ProjectileCntl(object):
         p.mass = self.mass
         p.caliber = self.caliber
         p.mv = self.mv
+        p.reset_form_factors(self.ffs)
         p.set_drag_function(self.drag_function)
         p.set_density_function(self.density_function)
         p.air_density_factor = self.adf
@@ -398,7 +415,7 @@ class GUIMixin(object):
         self.undo = []
         self.frame = None
         self.args = None
-        super(GUIMixin, self).__init__()
+        self.projectile = None
 
     def setup_display(self):
         if self.frame:
@@ -431,10 +448,17 @@ class GUIMixin(object):
     def reset_projectile(self):
         raise NotImplemented
 
-class SingleRunGUI(GUIMixin, commands.SingleRun):
+    def run_analysis(self):
+        try:
+            super(GUIMixin, self).run_analysis()
+            return True
+        # this is a valid use case for a catch-all exception
+        except Exception as e:
+            tkmb.showwarning("Error running analysis", "%s" % (e.message))
+            return False
 
-    def __init__(self, master, pcntl):
-        super(SingleRunGUI, self).__init__(master, pcntl)
+
+class SingleRunGUI(GUIMixin, commands.SingleRun):
 
     # we need to take the departure angle, and a checkbox to determine whether
     # to print out the trajectory
@@ -477,7 +501,8 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         self.projectile.show_trajectory = False
         if self._print_trajectory.get() != 0:
             self.projectile.show_trajectory = True
-        self.run_analysis()
+        if not self.run_analysis():
+            return
         text = ""
         if not self.config_printed:
             text = self.format_configuration()
@@ -510,7 +535,8 @@ class MaxRangeGUI(GUIMixin, commands.MaxRange):
 
     def process_gui(self):
         self.projectile = self.pcntl.get_projectile()
-        self.run_analysis()
+        if not self.run_analysis():
+            return
         text = self.format_configuration()
         text += "\n"
         text += self.format_output()
@@ -548,7 +574,8 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
             tkmb.showwarning("Conversion Error", "%s" % (e))
             return
         self.args.target_range = [tr]
-        self.run_analysis()
+        if not self.run_analysis():
+            return
         text = ""
         if not self.config_printed:
             text = self.format_configuration()
@@ -563,7 +590,9 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
 
 class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
 
-    ffs = []
+    def __init__(self, master, pcntl):
+        self.ffs = []
+        super(MatchFormFactorGUI, self).__init__(master, pcntl)
 
     def setup_display(self):
         self.config_printed = False
@@ -586,10 +615,12 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         run.pack(side=tk.LEFT)
         t = tk.LabelFrame(self.frame, text="Projectile")
         t.pack(side=tk.TOP)
+        copy = tk.Button(t, text="Copy FFs", command=self.copy_projectile_ffs)
+        copy.pack(side=tk.LEFT)
+        show = tk.Button(t, text="Show FFs", command=self.popup_ffs)
+        show.pack(side=tk.LEFT)
         update = tk.Button(t, text="Update FFs", command=self.update_projectile_ffs)
         update.pack(side=tk.LEFT)
-        show = tk.Button(t, text="Show FFs", command=self.show_ffs)
-        show.pack(side=tk.LEFT)
         self.output = make_output(self.frame,
                                   reset=self.reset_output,
                                   save=self.save_output)
@@ -607,7 +638,8 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
             tkmb.showwarning("Conversion Error", "%s" % (e))
             return
         self.args.shot = ["%f,%f" % (da, tr)]
-        self.run_analysis()
+        if not self.run_analysis():
+            return
         self.ffs.extend(self.projectile.copy_form_factors())
         self.projectile.clear_form_factors()
         self.projectile.unset_departure_angle()
@@ -620,14 +652,37 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
 
     def reset_output(self):
         self.config_printed = False
-        self.ffs = []
         super(MatchFormFactorGUI, self).reset_output()
 
+    def copy_projectile_ffs(self):
+        self.projectile = self.pcntl.get_projectile()
+        self.ffs = self.projectile.copy_form_factors()
+
     def update_projectile_ffs(self):
+        self.projectile = self.pcntl.get_projectile()
         self.projectile.clear_form_factors()
         self.projectile.unset_departure_angle()
         self.projectile.reset_form_factors(self.ffs)
         self.pcntl.update_projectile(self.projectile)
+
+    def popup_ffs(self):
+        self.toplevel = tk.Toplevel()
+        self.toplevel.title("Form Factors")
+        self.toplevel.transient()
+        t = tk.Frame(self.toplevel)
+        t.pack(side=tk.TOP)
+        self._ffd = FFDisplay(t)
+        self._ffd.set_ffs(self.ffs)
+        t = tk.Frame(self.toplevel)
+        t.pack(side=tk.TOP)
+        cancel = tk.Button(t, text="Cancel", command=self.toplevel.destroy)
+        cancel.pack(side=tk.LEFT, anchor=tk.W)
+        save = tk.Button(t, text="Save", command=self.update_local_ffs)
+        save.pack(side=tk.RIGHT, anchor=tk.E)
+
+    def update_local_ffs(self):
+        self.ffs = self._ffd.get_ffs()
+        self.toplevel.destroy()
 
     def show_ffs(self):
         text = "\nCurrent Form Factors\n"
@@ -682,7 +737,8 @@ class RangeTableGUI(GUIMixin, commands.RangeTable):
         self.args.start = start
         self.args.end = end
         self.args.increment = inc
-        self.run_analysis()
+        if not self.run_analysis():
+            return
         text = self.format_header()
         text += "\n"
         text += self.format_output()
