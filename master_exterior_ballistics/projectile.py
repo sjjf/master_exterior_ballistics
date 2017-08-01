@@ -354,6 +354,8 @@ class Projectile(object):
         return ["US", "UK", "ICAO"]
 
     def set_drag_function(self, df):
+        self.drag_function = None
+        self.drag_function_file = None
         if df in Projectile.get_drag_functions():
             self.drag_function = df
             self._load_drag_function_std()
@@ -366,6 +368,8 @@ class Projectile(object):
     # precedence over the config file; in a config file the drag_function_file
     # option takes precedence over the drag_function option
     def load_drag_function(self, args):
+        self.drag_function = None
+        self.drag_function_file = None
         if args.drag_function_file:
             self.drag_function_file = args.drag_function_file
             self.drag_function = "file"
@@ -405,14 +409,17 @@ class Projectile(object):
     def _load_drag_function(self, df):
         mach = []
         kd = []
-        for line in df.readlines():
-            line = line.strip()
-            if line != "":
-                (m, k) = line.split(',', 2)
-                mach.append(float(m))
-                kd.append(float(k))
-        self.mach = mach
-        self.kd = kd
+        try:
+            for line in df.readlines():
+                line = line.strip()
+                if line != "":
+                    (m, k) = line.split(',', 2)
+                    mach.append(float(m))
+                    kd.append(float(k))
+            self.mach = mach
+            self.kd = kd
+        except ValueError:
+            raise ValueError("Invalid drag function file format")
 
     # this is a class method so that we can access it without needing an object
     @classmethod

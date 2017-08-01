@@ -3,6 +3,7 @@
 import argparse
 import copy
 import math
+from os import path
 import Tkinter as tk
 import ttk
 import tkFileDialog as tkfd
@@ -268,6 +269,8 @@ class ProjectileCntl(object):
     def __init__(self, master, proj):
         self.root = master
         self.projectile = proj
+        self.extra_drag_functions = {}
+        self.undo = []
 
         self._name = add_entry(master, "Name", default=proj.name)
         self._mass = add_entry(master, "Mass", default=proj.mass)
@@ -275,20 +278,39 @@ class ProjectileCntl(object):
         self._mv = add_entry(master, "Muzzle Velocity", default=proj.mv)
         # more klunkiness . . .
         #
-        # We have a label frame wrapping everything, then a spin box listing the known drag function options, with the option of setting your own filename (by editing the value directly).
+        # We have a label frame wrapping everything, then a spin box listing
+        # the known drag function options, with the option of setting your own
+        # filename (by editing the value directly).
         t = tk.LabelFrame(master, text="Drag Function")
         t.pack(side=tk.TOP, anchor=tk.W)
 
+        # The drag function handling is a pain in the arse.
+        #
+        # The problem is that we want to have a single control that does two
+        # things: select one of the existing drag functions, /and/ allow the
+        # user to specify a file.
+        #
+        # The way we do this is by having a "magic" value in the combobox that
+        # triggers us to pop up a filename dialogue. Once the user has selected
+        # a file we need to add it to the dropdown box too, and retain the
+        # magic value to allow the addition of new files.
+        #
+        # So that we're not putting stupidly long values in the combobox, we'll
+        # put just the filename, and store the full path elsewhere.
         self.std_drag_functions = projectile.Projectile.get_drag_functions()
-        values = self.std_drag_functions
+        values = []
+        values.extend(self.std_drag_functions)
         values.append("Specify File")
-        self._drag_function = ttk.Combobox(t, values=values)
+        self._drag_function = ttk.Combobox(t, values=values, state='readonly')
         self._drag_function.delete(0, tk.END)
         if proj.drag_function_file:
-            self._drag_function.insert(tk.INSERT, proj.drag_function_file)
+            i = values.index("Specify File")
+            self._drag_function.current(i)
         else:
-            self._drag_function.insert(tk.INSERT, proj.drag_function)
+            i = values.index(proj.drag_function)
+            self._drag_function.current(i)
         self._drag_function.pack()
+        self._drag_function.bind('<<ComboboxSelected>>', self._drag_function_handler)
 
         self._ff_display = FFDisplay(master)
         self._ff_display.set_ffs(proj.copy_form_factors())
@@ -296,10 +318,11 @@ class ProjectileCntl(object):
         t = tk.LabelFrame(master, text="Density Function")
         t.pack(side=tk.TOP, anchor=tk.W)
         values = projectile.Projectile.get_density_functions()
-        self._density_function = ttk.Combobox(t, values=values)
+        self._density_function = ttk.Combobox(t, values=values, state='readonly')
         self._density_function.delete(0, tk.END)
         if proj.density_function:
-            self._density_function.insert(tk.INSERT, proj.density_function)
+            i = values.index(proj.density_function)
+            self._density_function.current(i)
         self._density_function.pack(side=tk.TOP)
         t = tk.LabelFrame(master, text="Air Density Factor")
         t.pack(side=tk.TOP, anchor=tk.W)
@@ -309,9 +332,50 @@ class ProjectileCntl(object):
         else:
             self._adf.insert(tk.INSERT, "1.0")
         self._adf.pack()
+        self.update()
         set_title(proj.name, proj.filename)
 
+    def _drag_function_handler(self, event):
+        value = event.widget.get()
+        values = list(event.widget['values'])
+        event.widget.select_clear()
+        df = value
+        if value == "Specify File":
+            filename = tkfd.askopenfilename(filetypes=[("All Files", "*")])
+            if filename:
+                df = path.basename(filename)
+                self.extra_drag_functions[df] = filename
+                self.drag_function = filename
+            else:
+                return
+        else:
+            self.drag_function = df
+        # update the stuff in the combobox
+        self._update_drag_function_combobox(df)
+
+    def _update_drag_function_combobox(self, value):
+        values = []
+        values.extend(self.std_drag_functions)
+        values.extend(self.extra_drag_functions.keys())
+        values.append("Specify File")
+        if value not in values:
+            raise ValueError("Invalid drag function %s" % (value))
+        self._drag_function['values'] = tuple(values)
+        i = values.index(value)
+        self._drag_function.current(i)
+
+    # map from the value in the combobox to the actual filename
+    #
+    # The combobox is read-only, so the only way we can return an invalid value
+    # is if there's a bug elsewhere here
+    def _get_drag_function(self):
+        value = self._drag_function.get()
+        if value in self.extra_drag_functions:
+            return self.extra_drag_functions[value]
+        return value
+
     def update_projectile(self, proj):
+        self.undo.append(self.projectile)
         self.projectile = proj
         self.refresh()
         pass
@@ -330,7 +394,7 @@ class ProjectileCntl(object):
         except ValueError as e:
             tkmb.showwarning("Conversion Error", "%s" % (e))
         self.ffs = self._ff_display.get_ffs()
-        self.drag_function = self._drag_function.get()
+        self.drag_function = self._get_drag_function()
         self.density_function = self._density_function.get()
         self.name = self._name.get()
         set_title(self.name, self.projectile.filename)
@@ -347,11 +411,10 @@ class ProjectileCntl(object):
         self._mv.delete(0, tk.END)
         self._mv.insert(tk.INSERT, repr(self.projectile.mv))
         self._ff_display.set_ffs(self.projectile.copy_form_factors())
-        self._drag_function.delete(0, tk.END)
         if self.projectile.drag_function_file:
-            self._drag_function.insert(tk.INSERT, self.projectile.drag_function_file)
+            self._update_drag_function_combobox(self.projectile.drag_function_file)
         else:
-            self._drag_function.insert(tk.INSERT, self.projectile.drag_function)
+            self._update_drag_function_combobox(self.projectile.drag_function)
         self._density_function.delete(0, tk.END)
         self._density_function.insert(tk.INSERT, self.projectile.density_function)
         self._adf.delete(0, tk.END)
@@ -359,17 +422,64 @@ class ProjectileCntl(object):
         set_title(self.projectile.name, self.projectile.filename)
 
     def get_projectile(self):
-        self.update()
-        p = copy.deepcopy(self.projectile)
-        p.name = self.name
-        p.mass = self.mass
-        p.caliber = self.caliber
-        p.mv = self.mv
-        p.reset_form_factors(self.ffs)
-        p.set_drag_function(self.drag_function)
-        p.set_density_function(self.density_function)
-        p.air_density_factor = self.adf
+        try:
+            self.update()
+            p = copy.deepcopy(self.projectile)
+            p.name = self.name
+            p.mass = self.mass
+            p.caliber = self.caliber
+            p.mv = self.mv
+            p.reset_form_factors(self.ffs)
+            p.set_drag_function(self.drag_function)
+            p.set_density_function(self.density_function)
+            p.air_density_factor = self.adf
+        except ValueError as e:
+            tkmb.showwarning("Error loading projectile", "%s" % (e))
+            return None
+        self.push_undo(p)
         return p
+
+    # compare the given projectile with the last one we already put on the undo
+    # stack, and if it's meaningfully different push it on top
+    def push_undo(self, proj):
+        if len(self.undo) == 0:
+            self.undo.append(proj)
+        p1 = self.undo[-1]
+        p2 = proj
+        same = True
+        if p1.name != p2.name:
+            same = False
+        if p1.mass != p2.mass:
+            same = False
+        if p1.caliber != p2.caliber:
+            same = False
+        if p1.mv != p2.mv:
+            same = False
+        if p1.drag_function != p2.drag_function:
+            same = False
+        if p1.drag_function_file != p2.drag_function_file:
+            same = False
+        if p1.density_function != p2.density_function:
+            same = False
+        if p1.air_density_factor != p2.air_density_factor:
+            same = False
+        ff1 = p1.copy_form_factors()
+        ff2 = p2.copy_form_factors()
+        if len(ff1) != len(ff2):
+            same = False
+        i = 0
+        while i < len(ff1):
+            (d1, f1) = ff1[i]
+            (d2, f2) = ff2[i]
+            if d1 != d2:
+                same = False
+                break
+            if f1 != f2:
+                same = False
+                break
+            i += 1
+        if not same:
+            self.undo.append(proj)
 
     def set_projectile(self, proj):
         self.projectile = proj
@@ -435,7 +545,6 @@ class GUIMixin(object):
     def __init__(self, master, pcntl):
         self.master = master
         self.pcntl = pcntl
-        self.undo = []
         self.frame = None
         self.args = None
         self.projectile = None
@@ -513,7 +622,10 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         return self.frame
 
     def process_gui(self):
-        self.projectile = self.pcntl.get_projectile()
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        self.projectile = projectile
         try:
             self.departure_angle = float(self._departure_angle.get())
             self.departure_angle = math.radians(self.departure_angle)
@@ -557,7 +669,10 @@ class MaxRangeGUI(GUIMixin, commands.MaxRange):
         return self.frame
 
     def process_gui(self):
-        self.projectile = self.pcntl.get_projectile()
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        self.projectile = projectile
         if not self.run_analysis():
             return
         text = self.format_configuration()
@@ -588,7 +703,11 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
         return self.frame
 
     def process_gui(self):
-        self.projectile = self.pcntl.get_projectile()
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        self.projectile = projectile
+
         self.args = self.projectile.make_args()
         try:
             tr = self._target_range.get()
@@ -650,7 +769,11 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         return self.frame
 
     def process_gui(self):
-        self.projectile = self.pcntl.get_projectile()
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        self.projectile = projectile
+
         self.args = self.projectile.make_args()
         try:
             tr = self._target_range.get()
@@ -745,7 +868,11 @@ class RangeTableGUI(GUIMixin, commands.RangeTable):
         return self.frame
 
     def process_gui(self):
-        self.projectile = self.pcntl.get_projectile()
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        self.projectile = projectile
+
         self.args = self.projectile.make_args()
         try:
             start = self._start.get()
