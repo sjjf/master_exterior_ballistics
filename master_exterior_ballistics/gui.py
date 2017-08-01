@@ -92,6 +92,9 @@ class App(object):
         mb.add_command(label="New", command=self.new_projectile)
         mb.add_command(label="Open", command=self.load_projectile)
         mb.add_command(label="Save", command=self.save_projectile)
+        mb.add_command(label="Save As", command=self.save_projectile_as)
+        mb.add_separator()
+        mb.add_command(label="Quit", command=self.quit)
         self.panes = tk.PanedWindow(master, orient=tk.HORIZONTAL, showhandle=False)
         self.panes.pack(fill=tk.BOTH, expand=1)
         self.pframe = tk.LabelFrame(self.panes, text="Projectile Details", bd=0)
@@ -119,7 +122,19 @@ class App(object):
                                               ("Projecile Config", "*.conf"),
                                               ("All Files", "*")
                                           ])
-        if filename == "":
+        if not filename:
+            return
+        self.last_savefile = filename
+        proj.to_config(self.last_savefile)
+        set_title(proj.name, filename)
+
+    def save_projectile_as(self):
+        proj = self.pcntl.get_projectile()
+        filename = tkfd.asksaveasfilename(filetypes=[
+                                            ("Projectile Config", "*.conf"),
+                                            ("All Files", "*")
+                                          ])
+        if not filename:
             return
         self.last_savefile = filename
         proj.to_config(self.last_savefile)
@@ -134,7 +149,7 @@ class App(object):
                                             ("Projectile Config", "*.conf"),
                                             ("All Files", "*")
                                         ])
-        if filename == "":
+        if not filename:
             return
         try:
             proj = projectile.Projectile.from_file(filename)
@@ -149,6 +164,10 @@ class App(object):
         proj = projectile.Projectile.from_defaults()
         self.pcntl.set_projectile(proj)
         set_title(proj.name)
+
+    def quit(self):
+        global master_window
+        master_window.destroy()
 
 
 # this is broken out so that it can be reused in multiple contexts
