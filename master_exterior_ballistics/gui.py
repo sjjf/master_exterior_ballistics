@@ -175,7 +175,7 @@ class App(object):
         master_window.destroy()
 
     def undo_projectile(self):
-        self.pcntl.pop_undo()
+        self.pcntl.pop_history()
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -291,13 +291,57 @@ class FFDisplay(object):
         self.show_ffs()
 
 
+# This is an attempt to make the undo support more powerful and usable.
+#
+# The idea of an undo stack is pretty obvious and in theory quite nice, but I've
+# seen better ways of managing it. The one that I like is to allow the user to
+# browse the stack and pick a point to return to - this is far more powerful
+# than simply popping the top off the stack until you get back to the point you
+# want. It shouldn't be too hard to implement, either - all you need is a way to
+# visualise/display the undo stack.
+#
+# I'd like to support /redo/ as well as undo, but the detailed logic of that is
+# harder to think through. The simplest approach is to say that redo just moves
+# forward on the undo list, the same way that undo moves backwards on it, so
+# that you have something like this:
+#
+# start . . . . undo now redo . . . end
+#
+# In the undo-as-stack-pop model, when you pop something off the undo stack the
+# current state needs to be pushed onto the redo stack; in the
+# undo-as-list-traversal redo would mean looking through the undo list again.
+# In both cases you have the question of what happens after the /next/
+# push/append onto the undo list. At that point you have more than one future
+# (redo) path, both of which are only meaningful in the context of the branch
+# point.
+#
+# In the stack model it makes perfect sense to just toss the redo stack whenever
+# you push a new state onto the undo stack - you can't peek at either of the
+# stacks, you just have a choice of moving to the state behind you, or the one
+# in front, and once you've started moving forward there /is/ no meaningful
+# state in front, and hence no meaningful 'redo' operation.
+#
+# In the list model, though, each element in the list isn't defined by its
+# relationship with the previous and next elements - each element is simply a
+# point in time with a certain set of state information. Going back to a
+# previous point just means bringing that state information to the front of the
+# list, so that any future undo information will be based on /that/ state rather
+# than whatever it was before. But there's no reason to toss all the elements on
+# the list ahead of that point - they can stick around, so that next time the
+# user wants to go back in time they're still there as options.
+#
+# I guess that's really a history browser, rather than undo/redo.
+class HistoryBrowser(object):
+    pass
+
+
 # our master is the top level left panel frame
 class ProjectileCntl(object):
     def __init__(self, master, proj):
         self.root = master
         self.projectile = proj
         self.extra_drag_functions = {}
-        self.undo = []
+        self.history = []
         self.last_projectile = None
 
         self._name = add_entry(master, "Name", default=proj.name)
@@ -410,7 +454,7 @@ class ProjectileCntl(object):
         self._density_function.current(i)
 
     def update_projectile(self, proj):
-        self.undo.append(self.projectile)
+        self.history.append(self.projectile)
         self._update_projectile(proj)
 
     def _update_projectile(self, proj):
@@ -474,7 +518,7 @@ class ProjectileCntl(object):
             tkmb.showwarning("Error loading projectile", "%s" % (e))
             return None
         if not self._cmp_projectiles(self.projectile, p):
-            self.push_undo(self.projectile)
+            self.push_history(self.projectile)
         self.projectile = p
         return p
 
@@ -518,25 +562,25 @@ class ProjectileCntl(object):
 
     # compare the given projectile with the last one we already put on the undo
     # stack, and if it's meaningfully different push it on top
-    def push_undo(self, proj):
-        if len(self.undo) == 0:
-            self.undo.append(proj)
+    def push_history(self, proj):
+        if len(self.history) == 0:
+            self.history.append(proj)
             return
 
-        if not self._cmp_projectiles(self.undo[-1], proj):
-            self.undo.append(proj)
+        if not self._cmp_projectiles(self.history[-1], proj):
+            self.history.append(proj)
 
-    # pop the last undo value off the stack
-    def pop_undo(self):
-        if len(self.undo) > 0:
-            proj = self.undo.pop()
+    # pop the last history entry off the stack
+    def pop_history(self):
+        if len(self.history) > 0:
+            proj = self.history.pop()
             self._update_projectile(proj)
             self.refresh()
             return
-        tkmb.showwarning("No More Undo", "Already at end of the undo history")
+        tkmb.showwarning("No More History", "Already at end of the undo history")
 
     def set_projectile(self, proj):
-        self.push_undo(self.projectile)
+        self.push_history(self.projectile)
         self.projectile = proj
         self.refresh()
 
@@ -629,7 +673,7 @@ class GUIMixin(object):
             f.write(self.output.get(1.0, tk.END))
 
     def reset_output(self):
-        self.undo.append(self.output.get(1.0, tk.END))
+        self.history.append(self.output.get(1.0, tk.END))
         self.output.delete(1.0, tk.END)
 
     def reset_projectile(self):
