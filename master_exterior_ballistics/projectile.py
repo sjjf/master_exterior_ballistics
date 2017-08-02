@@ -815,3 +815,8 @@ class Projectile(object):
     def print_initial_conditions(self):
         text = self.format_initial_conditions()
         print text
+
+    def __str__(self):
+        text = self.format_configuration()
+        text += self.format_initial_conditions()
+        return text

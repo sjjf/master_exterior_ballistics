@@ -95,6 +95,11 @@ class App(object):
         mb.add_command(label="Save As", command=self.save_projectile_as)
         mb.add_separator()
         mb.add_command(label="Quit", command=self.quit)
+        self._edit = tk.Menubutton(self.menu, text="Edit")
+        self._edit.pack(side=tk.LEFT)
+        mb = tk.Menu(self._edit)
+        self._edit['menu'] = mb
+        mb.add_command(label="Undo", command=self.undo_projectile)
         self.panes = tk.PanedWindow(master, orient=tk.HORIZONTAL, showhandle=False)
         self.panes.pack(fill=tk.BOTH, expand=1)
         self.pframe = tk.LabelFrame(self.panes, text="Projectile Details", bd=0)
@@ -168,6 +173,9 @@ class App(object):
     def quit(self):
         global master_window
         master_window.destroy()
+
+    def undo_projectile(self):
+        self.pcntl.pop_undo()
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -290,6 +298,7 @@ class ProjectileCntl(object):
         self.projectile = proj
         self.extra_drag_functions = {}
         self.undo = []
+        self.last_projectile = None
 
         self._name = add_entry(master, "Name", default=proj.name)
         self._mass = add_entry(master, "Mass", default=proj.mass)
@@ -351,7 +360,7 @@ class ProjectileCntl(object):
         else:
             self._adf.insert(tk.INSERT, "1.0")
         self._adf.pack()
-        self.update()
+        self.refresh()
         set_title(proj.name, proj.filename)
 
     def _drag_function_handler(self, event):
@@ -393,17 +402,26 @@ class ProjectileCntl(object):
             return self.extra_drag_functions[value]
         return value
 
+    def _update_density_function_combobox(self, value):
+        values = list(self._density_function['values'])
+        if value not in values:
+            raise ValueError("Invalid density function %s" % (value))
+        i = values.index(value)
+        self._density_function.current(i)
+
     def update_projectile(self, proj):
         self.undo.append(self.projectile)
+        self._update_projectile(proj)
+
+    def _update_projectile(self, proj):
         self.projectile = proj
         self.refresh()
-        pass
 
     def replace_drag_function(self):
         df = self._drag_function.get()
         self.projectile.set_drag_function(df)
 
-    # update the projectile with the current state of the GUI inputs
+    # update the local state with the current state of the GUI inputs
     def update(self):
         try:
             self.mass = float(self._mass.get())
@@ -434,12 +452,12 @@ class ProjectileCntl(object):
             self._update_drag_function_combobox(self.projectile.drag_function_file)
         else:
             self._update_drag_function_combobox(self.projectile.drag_function)
-        self._density_function.delete(0, tk.END)
-        self._density_function.insert(tk.INSERT, self.projectile.density_function)
+        self._update_density_function_combobox(self.projectile.density_function)
         self._adf.delete(0, tk.END)
         self._adf.insert(tk.INSERT, self.projectile.air_density_factor)
         set_title(self.projectile.name, self.projectile.filename)
 
+    # copy the local state into a copy of the current projectile
     def get_projectile(self):
         try:
             self.update()
@@ -455,16 +473,14 @@ class ProjectileCntl(object):
         except ValueError as e:
             tkmb.showwarning("Error loading projectile", "%s" % (e))
             return None
-        self.push_undo(p)
+        if not self._cmp_projectiles(self.projectile, p):
+            self.push_undo(self.projectile)
+        self.projectile = p
         return p
 
-    # compare the given projectile with the last one we already put on the undo
-    # stack, and if it's meaningfully different push it on top
-    def push_undo(self, proj):
-        if len(self.undo) == 0:
-            self.undo.append(proj)
-        p1 = self.undo[-1]
-        p2 = proj
+    def _cmp_projectiles(self, p1, p2):
+        if not p1 or not p2:
+            return False
         same = True
         if p1.name != p2.name:
             same = False
@@ -486,21 +502,41 @@ class ProjectileCntl(object):
         ff2 = p2.copy_form_factors()
         if len(ff1) != len(ff2):
             same = False
-        i = 0
-        while i < len(ff1):
-            (d1, f1) = ff1[i]
-            (d2, f2) = ff2[i]
-            if d1 != d2:
-                same = False
-                break
-            if f1 != f2:
-                same = False
-                break
-            i += 1
-        if not same:
+        else:
+            i = 0
+            while i < len(ff1):
+                (d1, f1) = ff1[i]
+                (d2, f2) = ff2[i]
+                if d1 != d2:
+                    same = False
+                    break
+                if f1 != f2:
+                    same = False
+                    break
+                i += 1
+        return same
+
+    # compare the given projectile with the last one we already put on the undo
+    # stack, and if it's meaningfully different push it on top
+    def push_undo(self, proj):
+        if len(self.undo) == 0:
+            self.undo.append(proj)
+            return
+
+        if not self._cmp_projectiles(self.undo[-1], proj):
             self.undo.append(proj)
 
+    # pop the last undo value off the stack
+    def pop_undo(self):
+        if len(self.undo) > 0:
+            proj = self.undo.pop()
+            self._update_projectile(proj)
+            self.refresh()
+            return
+        tkmb.showwarning("No More Undo", "Already at end of the undo history")
+
     def set_projectile(self, proj):
+        self.push_undo(self.projectile)
         self.projectile = proj
         self.refresh()
 
