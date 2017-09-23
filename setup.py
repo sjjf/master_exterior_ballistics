@@ -3,6 +3,7 @@
 from setuptools import find_packages
 from setuptools import setup
 from subprocess import check_output
+import sys
 import os
 
 name="master_exterior_ballistics"
@@ -39,6 +40,20 @@ description = (
     "An exterior ballistics tool aimed at historical naval artillery."
 )
 
+
+cmdclass = {}
+scripts = []
+setup_requires = []
+if sys.platform == 'win32':
+
+    from install.bdist_wix import bdist_wix
+    cmdclass = {
+        'bdist_wix': bdist_wix
+    }
+
+
+print find_packages(exclude=['install'])
+
 setup(
     name="master_exterior_ballistics",
     version="{ver}".format(ver=version_git),
@@ -48,8 +63,10 @@ setup(
     author_email="sjjfowler@gmail.com",
     url="https://github.com/sjjf/master_exterior_ballistics",
     license="GPLv3",
-    packages=find_packages(),
+    packages=find_packages(exclude=['install']),
     include_package_data=True,
+    setup_requires=setup_requires,
+    scripts=scripts,
     entry_points={
         'console_scripts': [
             'meb = master_exterior_ballistics.cli:main',
@@ -58,4 +75,5 @@ setup(
             'meb-gui = master_exterior_ballistics.gui:main',
         ],
     },
+    cmdclass = cmdclass,
     )
