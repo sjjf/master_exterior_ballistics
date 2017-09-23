@@ -114,6 +114,11 @@ class Product(object):
         self.children.append(f)
         return f
 
+    def add_upgrade(self, Id, minver, maxver):
+        u = Upgrade(Id, minver, maxver)
+        self.children.append(u)
+        return u
+
     def serialise(self, parent):
         # this has a bunch of extra complexity, since there's some boilerplate
         # at this level that's not worth wrapping in a separate class
@@ -391,6 +396,42 @@ class ComponentRef(object):
         cr = ET.SubElement(parent, 'ComponentRef', attrib=attrib)
 
 
+class Upgrade(object):
+    def __init__(self, Id, Minver, Maxver):
+        self.id = Id
+        self.minver = Minver
+        self.maxver = Maxver
+
+    def serialise(self, parent):
+        attrib = {
+            'DowngradeErrorMessage': (
+                'A newer version of this package is already installed - '
+                'please uninstall that version manually if you wish to '
+                'install this version'
+            ),
+        }
+        upgrade = ET.SubElement(parent, 'MajorUpgrade', attrib=attrib)
+        return
+
+        # this is a relatively complex one because we're nesting the
+        # UpgradeVersion element rather than having a separate class for it
+
+        attrib = {
+            'Id': self.id,
+        }
+        upgrade = ET.SubElement(parent, 'Upgrade', attrib=attrib)
+
+        attrib = {
+            'OnlyDetect': 'no',
+            'Property': 'PREVIOUSFOUND',
+            'Minimum': self.minver,
+            'IncludeMinimum': 'yes',
+            'Maximum': self.maxver,
+            'IncludeMaximum': 'no',
+        }
+        uv = ET.SubElement(upgrade, 'UpgradeVersion', attrib = attrib)
+
+
 class bdist_wix (Command):
 
     description = "create a Microsoft Installer (.msi) binary distribution using the Wix toolkit"
@@ -433,10 +474,14 @@ class bdist_wix (Command):
     boolean_options = ['keep-temp', 'no-target-compile', 'no-target-optimize',
                        'skip-build']
 
-    all_versions = ['2.0', '2.1', '2.2', '2.3', '2.4',
-                    '2.5', '2.6', '2.7', '2.8', '2.9',
+    all_versions = ['2.5', '2.6', '2.7', '2.8', '2.9',
                     '3.0', '3.1', '3.2', '3.3', '3.4',
                     '3.5', '3.6', '3.7', '3.8', '3.9']
+
+#    all_versions = ['2.0', '2.1', '2.2', '2.3', '2.4',
+#                    '2.5', '2.6', '2.7', '2.8', '2.9',
+#                    '3.0', '3.1', '3.2', '3.3', '3.4',
+#                    '3.5', '3.6', '3.7', '3.8', '3.9']
     other_version = 'X'
 
     def initialize_options (self):
@@ -591,6 +636,12 @@ class bdist_wix (Command):
         if props:
             for (key, val) in props:
                 self.product.add_property(key, val)
+
+        # add upgrade support
+        minver = '0.0.1'
+        if 'upgrade_minversion' in opts:
+            _, minver = opts["upgrade_minversion"]
+        self.product.add_upgrade(upgrade_uuid, minver, sversion)
 
         # this is very constrained at the moment - a single start menu shortcut
         shortcuts = self.distribution.get_option_dict("wix:shortcuts")
