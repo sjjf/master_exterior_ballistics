@@ -52,8 +52,6 @@ if sys.platform == 'win32':
     }
 
 
-print find_packages(exclude=['install'])
-
 setup(
     name="master_exterior_ballistics",
     version="{ver}".format(ver=version_git),

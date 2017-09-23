@@ -65,8 +65,8 @@ class Wix(object):
         self.tree = ET.ElementTree(element=self.wix)
         self.children = []
 
-    def add_product(self, name, Id, UpgradeCode, Version, Manufacturer):
-        p = Product(name, Id, UpgradeCode, Version, Manufacturer)
+    def add_product(self, name, Id, UpgradeCode, Version, Manufacturer, License):
+        p = Product(name, Id, UpgradeCode, Version, Manufacturer, License)
         self.children.append(p)
         return p
 
@@ -80,12 +80,13 @@ class Wix(object):
 
 
 class Product(object):
-    def __init__(self, name, Id, UpgradeCode, Version, Manufacturer):
+    def __init__(self, name, Id, UpgradeCode, Version, Manufacturer, License=None):
         self.id = Id
         self.upgrade_code = UpgradeCode
         self.name = name
         self.version = Version
         self.manufacturer = Manufacturer
+        self.license = License
         self.children = []
 
     def add_property(self, Id, value=None):
@@ -149,6 +150,16 @@ class Product(object):
             'Value': 'bdist_wix installation [1]',
         }
         prop = ET.SubElement(product, 'Property', attrib=attrib)
+        attrib = {
+            'Id': 'WixUI_FeatureTree',
+        }
+        wixui = ET.SubElement(product, 'UIRef', attrib=attrib)
+        if self.license:
+            attrib = {
+                'Id': 'WixUILicenseRtf',
+                'Value': self.license,
+            }
+            wixvar = ET.SubElement(product, 'WixVariable', attrib=attrib)
         for child in self.children:
             child.serialise(product)
 
@@ -440,6 +451,7 @@ class bdist_wix (Command):
         self.install_script = None
         self.pre_install_script = None
         self.shortcut = None
+        self.license_rtf = None
         self.versions = None
 
     def finalize_options (self):
@@ -557,9 +569,19 @@ class bdist_wix (Command):
         self.wix = Wix()
         # Note: these two uuids will need to be supplied externally, since
         # they're persistent across the lifetime of the product
-        self.product = self.wix.add_product(product_name, uuid4(),
-                                            uuid4(),
-                                            sversion, author)
+        opts = self.distribution.get_option_dict("wix")
+        product_uuid = uuid4()
+        if "product_uuid" in opts:
+            _, product_uuid = opts["product_uuid"]
+        upgrade_uuid = uuid4()
+        if "upgrade_uuid" in opts:
+            _, upgrade_uuid = opts["upgrade_uuid"]
+
+        if "license_rtf" in opts:
+            _, license_rtf = opts["license_rtf"]
+        self.product = self.wix.add_product(product_name, product_uuid,
+                                            upgrade_uuid,
+                                            sversion, author, license_rtf)
         props = [('DistVersion', version)]
         email = metadata.author_email or metadata.maintainer_email
         if email:
@@ -569,6 +591,15 @@ class bdist_wix (Command):
         if props:
             for (key, val) in props:
                 self.product.add_property(key, val)
+
+        # this is very constrained at the moment - a single start menu shortcut
+        shortcuts = self.distribution.get_option_dict("wix:shortcuts")
+        if "start" in shortcuts:
+            _, shortcut = shortcuts["start"]
+            # don't override the command line
+            if not self.shortcut:
+                self.shortcut_dir = "start"
+                self.shortcut_target, self.shortcut_name = shortcut.split(':')
 
         self.root = self.product.add_directory('TARGETDIR', 'SourceDir')
         self.root.add_directory('ProgramMenuFolder', 'Programs')
@@ -595,7 +626,13 @@ class bdist_wix (Command):
         if retval != 0:
             raise DistutilsExecError, \
                   "Failed to run candle.exe on " + wix_file
-        retval = subprocess.call(['light.exe', '-out', installer_name, wixobj_file])
+        light_args = [
+            'light.exe',
+            '-ext', 'WixUIExtension',
+            '-out', installer_name,
+            wixobj_file,
+        ]
+        retval = subprocess.call(light_args)
         if retval != 0:
             raise DistutilsExecError, \
                   "Failed to run light.exe on " + wixobj_file
