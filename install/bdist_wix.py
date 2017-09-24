@@ -114,6 +114,11 @@ class Product(object):
         self.children.append(f)
         return f
 
+    def add_major_upgrade(self, Id,):
+        mu = MajorUpgrade(Id)
+        self.children.append(mu)
+        return mu
+
     def add_upgrade(self, Id, minver, maxver):
         u = Upgrade(Id, minver, maxver)
         self.children.append(u)
@@ -396,11 +401,9 @@ class ComponentRef(object):
         cr = ET.SubElement(parent, 'ComponentRef', attrib=attrib)
 
 
-class Upgrade(object):
-    def __init__(self, Id, Minver, Maxver):
+class MajorUpgrade(object):
+    def __init__(self, Id):
         self.id = Id
-        self.minver = Minver
-        self.maxver = Maxver
 
     def serialise(self, parent):
         attrib = {
@@ -411,8 +414,15 @@ class Upgrade(object):
             ),
         }
         upgrade = ET.SubElement(parent, 'MajorUpgrade', attrib=attrib)
-        return
 
+
+class Upgrade(object):
+    def __init__(self, Id, minver, maxver):
+        self.id = Id
+        self.minver = minver
+        self.maxver = maxver
+
+    def serialise(self, parent):
         # this is a relatively complex one because we're nesting the
         # UpgradeVersion element rather than having a separate class for it
 
@@ -638,10 +648,7 @@ class bdist_wix (Command):
                 self.product.add_property(key, val)
 
         # add upgrade support
-        minver = '0.0.1'
-        if 'upgrade_minversion' in opts:
-            _, minver = opts["upgrade_minversion"]
-        self.product.add_upgrade(upgrade_uuid, minver, sversion)
+        self.product.add_major_upgrade(upgrade_uuid)
 
         # this is very constrained at the moment - a single start menu shortcut
         shortcuts = self.distribution.get_option_dict("wix:shortcuts")
