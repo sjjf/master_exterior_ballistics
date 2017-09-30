@@ -4,6 +4,7 @@ import argparse
 import copy
 import math
 from os import path
+import time
 import Tkinter as tk
 import ttk
 import tkFileDialog as tkfd
@@ -100,6 +101,7 @@ class App(object):
         mb = tk.Menu(self._edit)
         self._edit['menu'] = mb
         mb.add_command(label="Undo", command=self.undo_projectile)
+        mb.add_command(label="Undo History", command=self.undo_history)
         self.panes = tk.PanedWindow(master, orient=tk.HORIZONTAL, showhandle=False)
         self.panes.pack(fill=tk.BOTH, expand=1)
         self.pframe = tk.LabelFrame(self.panes, text="Projectile Details", bd=0)
@@ -176,6 +178,9 @@ class App(object):
 
     def undo_projectile(self):
         self.pcntl.pop_history()
+
+    def undo_history(self):
+        self.pcntl.popup_history()
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -332,7 +337,99 @@ class FFDisplay(object):
 #
 # I guess that's really a history browser, rather than undo/redo.
 class HistoryBrowser(object):
-    pass
+    def __init__(self, master, history):
+        self.history = history
+        self.history_ids = {}
+        self.selected = None
+        self.toplevel = tk.Toplevel()
+        self.toplevel.title="History Browser"
+        self.toplevel.transient()
+
+        # As with everything else here this is klunky. It's modeled on the form
+        # factor display, but with a bit more information.
+        #
+        # We start with a label frame, a treeview showing the history data, a
+        # button to pick the history entry (and close the dialog box), and a
+        # button to cancel the history selection process.
+        t = tk.LabelFrame(self.toplevel, text="History Browser")
+        t.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=1)
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        s = tk.Scrollbar(f)
+        s.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree = ttk.Treeview(f,
+                columns=("History"),
+                height=10,
+                yscrollcommand=s.set)
+        self.tree.column("#0", minwidth=200)
+        self.tree.heading("#0", text="History")
+        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        s.config(command=self.tree.yview)
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP)
+        buttons = tk.Frame(f, width=80)
+        self.cancel = tk.Button(f, text="Cancel", command=self.cancel_selection)
+        self.cancel.pack(side=tk.LEFT)
+        self.select = tk.Button(f, text="Select", command=self.select)
+        self.select.pack(side=tk.RIGHT, anchor=tk.E)
+
+        for entry in self.history:
+            self._add_entry(entry)
+
+    def _add_entry(self, entry):
+        ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts))
+        t = self.tree.insert("", "end",
+                text=ts,
+                values=())
+        self.history_ids[t] = entry
+        self.tree.insert(t, "end",
+                text="Name",
+                values=(entry.proj.name))
+        self.tree.insert(t, "end",
+                text="Mass",
+                values=("%.2f" % (entry.proj.mass)))
+        self.tree.insert(t, "end",
+                text="Caliber",
+                values=("%.2f" % (entry.proj.caliber)))
+        self.tree.insert(t, "end",
+                text="Muzzle Velocity",
+                values=("%.2f" % (entry.proj.mv)))
+        if entry.proj.drag_function_file:
+            self.tree.insert(t, "end",
+                    text="Drag Function File",
+                    values=(entry.proj.drag_function_file))
+        else:
+            self.tree.insert(t, "end",
+                    text="Drag Function",
+                    values=(entry.proj.drag_function))
+        self.tree.insert(t, "end",
+                text="Density Function",
+                values=(entry.proj.density_function))
+        ffs = entry.proj.copy_form_factors()
+        ff = self.tree.insert(t, "end",
+                    text="Form Factors",
+                    values=())
+        for (d, f) in ffs:
+            self.tree.insert(ff, "end",
+                    text="%.4f" % (math.degrees(d)),
+                    values=("%.4f" % (f)))
+
+    def cancel_selection(self):
+        self.selected = None
+        self.toplevel.destroy()
+
+    def select(self):
+        iid = self.tree.focus()
+        if not iid:
+            return
+        self.selected = self.history_ids[iid]
+        self.toplevel.destroy()
+
+
+class HistoryEntry(object):
+    def __init__(self, proj):
+        self.ts = time.time()
+        self.proj = proj
 
 
 # our master is the top level left panel frame
@@ -563,21 +660,31 @@ class ProjectileCntl(object):
     # compare the given projectile with the last one we already put on the undo
     # stack, and if it's meaningfully different push it on top
     def push_history(self, proj):
+        hentry = HistoryEntry(proj)
         if len(self.history) == 0:
-            self.history.append(proj)
+            self.history.append(hentry)
             return
 
-        if not self._cmp_projectiles(self.history[-1], proj):
-            self.history.append(proj)
+        if not self._cmp_projectiles(self.history[-1].proj, proj):
+            self.history.append(hentry)
 
     # pop the last history entry off the stack
     def pop_history(self):
         if len(self.history) > 0:
-            proj = self.history.pop()
-            self._update_projectile(proj)
+            hentry = self.history.pop()
+            self._update_projectile(hentry.proj)
             self.refresh()
             return
         tkmb.showwarning("No More History", "Already at end of the undo history")
+
+    # popup the history browser
+    def popup_history(self):
+        hbrowser = HistoryBrowser(self.root, self.history)
+        self.root.wait_window(hbrowser.toplevel)
+        if hbrowser.selected:
+            self._update_projectile(hbrowser.selected.proj)
+            self.refresh()
+            return
 
     def set_projectile(self, proj):
         self.push_history(self.projectile)
