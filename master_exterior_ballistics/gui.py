@@ -12,6 +12,7 @@ import tkMessageBox as tkmb
 
 from master_exterior_ballistics import projectile
 from master_exterior_ballistics import commands
+from master_exterior_ballistics import config
 from master_exterior_ballistics import arguments
 from master_exterior_ballistics import version
 
@@ -52,6 +53,10 @@ def set_title(name=None, filename=None):
         master_window.title(title_with % (filename))
     else:
         master_window.title(title)
+
+
+CONFIG = None
+STATUS = None
 
 
 # Back to design thinking . . .
@@ -102,9 +107,13 @@ class App(object):
         self._edit['menu'] = mb
         mb.add_command(label="Undo", command=self.undo_projectile)
         mb.add_command(label="Undo History", command=self.undo_history)
-        self.panes = tk.PanedWindow(master, orient=tk.HORIZONTAL, showhandle=False)
+        self.panes = tk.PanedWindow(master,
+                                    orient=tk.HORIZONTAL,
+                                    showhandle=False)
         self.panes.pack(fill=tk.BOTH, expand=1)
-        self.pframe = tk.LabelFrame(self.panes, text="Projectile Details", bd=0)
+        self.pframe = tk.LabelFrame(self.panes,
+                                    text="Projectile Details",
+                                    bd=0)
         self.panes.add(self.pframe)
         self.panes.paneconfigure(self.pframe, minsize=200, width=200)
         self._add_projectile_cntl(proj)
@@ -132,6 +141,7 @@ class App(object):
         if not filename:
             return
         self.last_savefile = filename
+        STATUS.push_recent_file(filename)
         proj.to_config(self.last_savefile)
         set_title(proj.name, filename)
 
@@ -144,14 +154,18 @@ class App(object):
         if not filename:
             return
         self.last_savefile = filename
+        STATUS.push_recent_file(filename)
         proj.to_config(self.last_savefile)
         set_title(proj.name, filename)
 
     def load_projectile(self):
         filename = ""
+        ts, filename = STATUS.get_last_file()
+        initialdir = STATUS.get_last_dir()
         if self.last_savefile:
             filename = self.last_savefile
         filename = tkfd.askopenfilename(initialfile=filename,
+                                        initialdir=initialdir,
                                         filetypes=[
                                             ("Projectile Config", "*.conf"),
                                             ("All Files", "*")
@@ -162,10 +176,13 @@ class App(object):
             proj = projectile.Projectile.from_file(filename)
             self.pcntl.set_projectile(proj)
             self.last_savefile = filename
+            STATUS.push_recent_file(filename)
             set_title(proj.name, filename)
         except projectile.MissingAttribute as e:
             tkmb.showerror("Invalid Config File",
-                           message="Could not load file %s: %s" % (filename, e))
+                           message=(
+                               "Could not load file %s: %s" % (filename, e)
+                           ))
 
     def new_projectile(self):
         proj = projectile.Projectile.from_defaults()
@@ -203,9 +220,9 @@ class FFDisplay(object):
         s = tk.Scrollbar(f)
         s.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree = ttk.Treeview(f,
-                columns=("FF"),
-                height=10,
-                yscrollcommand=s.set)
+                                 columns=("FF"),
+                                 height=10,
+                                 yscrollcommand=s.set)
         self.tree.column("#0", width=80)
         self.tree.heading("#0", text="DA")
         self.tree.column("FF", width=80)
@@ -261,8 +278,8 @@ class FFDisplay(object):
         self.ff_ids = {}
         for (da, ff) in self.ffs:
             t = self.tree.insert("", "end",
-                    text="%.4f" % (math.degrees(da)),
-                    values=("%.6f" %(ff)))
+                                 text="%.4f" % (math.degrees(da)),
+                                 values=("%.6f" % (ff)))
             self.ff_ids[t] = da
 
     def add_ff(self):
@@ -298,12 +315,12 @@ class FFDisplay(object):
 
 # This is an attempt to make the undo support more powerful and usable.
 #
-# The idea of an undo stack is pretty obvious and in theory quite nice, but I've
-# seen better ways of managing it. The one that I like is to allow the user to
-# browse the stack and pick a point to return to - this is far more powerful
-# than simply popping the top off the stack until you get back to the point you
-# want. It shouldn't be too hard to implement, either - all you need is a way to
-# visualise/display the undo stack.
+# The idea of an undo stack is pretty obvious and in theory quite nice, but
+# I've seen better ways of managing it. The one that I like is to allow the
+# user to browse the stack and pick a point to return to - this is far more
+# powerful than simply popping the top off the stack until you get back to the
+# point you want. It shouldn't be too hard to implement, either - all you need
+# is a way to visualise/display the undo stack.
 #
 # I'd like to support /redo/ as well as undo, but the detailed logic of that is
 # harder to think through. The simplest approach is to say that redo just moves
@@ -320,20 +337,20 @@ class FFDisplay(object):
 # (redo) path, both of which are only meaningful in the context of the branch
 # point.
 #
-# In the stack model it makes perfect sense to just toss the redo stack whenever
-# you push a new state onto the undo stack - you can't peek at either of the
-# stacks, you just have a choice of moving to the state behind you, or the one
-# in front, and once you've started moving forward there /is/ no meaningful
-# state in front, and hence no meaningful 'redo' operation.
+# In the stack model it makes perfect sense to just toss the redo stack
+# whenever you push a new state onto the undo stack - you can't peek at either
+# of the stacks, you just have a choice of moving to the state behind you, or
+# the one in front, and once you've started moving forward there /is/ no
+# meaningful state in front, and hence no meaningful 'redo' operation.
 #
 # In the list model, though, each element in the list isn't defined by its
 # relationship with the previous and next elements - each element is simply a
 # point in time with a certain set of state information. Going back to a
 # previous point just means bringing that state information to the front of the
-# list, so that any future undo information will be based on /that/ state rather
-# than whatever it was before. But there's no reason to toss all the elements on
-# the list ahead of that point - they can stick around, so that next time the
-# user wants to go back in time they're still there as options.
+# list, so that any future undo information will be based on /that/ state
+# rather than whatever it was before. But there's no reason to toss all the
+# elements on the list ahead of that point - they can stick around, so that
+# next time the user wants to go back in time they're still there as options.
 #
 # I guess that's really a history browser, rather than undo/redo.
 class HistoryBrowser(object):
@@ -342,7 +359,7 @@ class HistoryBrowser(object):
         self.history_ids = {}
         self.selected = None
         self.toplevel = tk.Toplevel()
-        self.toplevel.title="History Browser"
+        self.toplevel.title = "History Browser"
         self.toplevel.transient()
 
         # As with everything else here this is klunky. It's modeled on the form
@@ -358,9 +375,9 @@ class HistoryBrowser(object):
         s = tk.Scrollbar(f)
         s.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree = ttk.Treeview(f,
-                columns=("History"),
-                height=10,
-                yscrollcommand=s.set)
+                                 columns=("History"),
+                                 height=10,
+                                 yscrollcommand=s.set)
         self.tree.column("#0", minwidth=200)
         self.tree.heading("#0", text="History")
         self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -368,9 +385,13 @@ class HistoryBrowser(object):
         f = tk.Frame(t)
         f.pack(side=tk.TOP)
         buttons = tk.Frame(f, width=80)
-        self.cancel = tk.Button(f, text="Cancel", command=self.cancel_selection)
+        self.cancel = tk.Button(buttons,
+                                text="Cancel",
+                                command=self.cancel_selection)
         self.cancel.pack(side=tk.LEFT)
-        self.select = tk.Button(f, text="Select", command=self.select)
+        self.select = tk.Button(buttons,
+                                text="Select",
+                                command=self.select)
         self.select.pack(side=tk.RIGHT, anchor=tk.E)
 
         for entry in self.history:
@@ -379,40 +400,40 @@ class HistoryBrowser(object):
     def _add_entry(self, entry):
         ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts))
         t = self.tree.insert("", "end",
-                text=ts,
-                values=())
+                             text=ts,
+                             values=())
         self.history_ids[t] = entry
         self.tree.insert(t, "end",
-                text="Name",
-                values=(entry.proj.name))
+                         text="Name",
+                         values=(entry.proj.name))
         self.tree.insert(t, "end",
-                text="Mass",
-                values=("%.2f" % (entry.proj.mass)))
+                         text="Mass",
+                         values=("%.2f" % (entry.proj.mass)))
         self.tree.insert(t, "end",
-                text="Caliber",
-                values=("%.2f" % (entry.proj.caliber)))
+                         text="Caliber",
+                         values=("%.2f" % (entry.proj.caliber)))
         self.tree.insert(t, "end",
-                text="Muzzle Velocity",
-                values=("%.2f" % (entry.proj.mv)))
+                         text="Muzzle Velocity",
+                         values=("%.2f" % (entry.proj.mv)))
         if entry.proj.drag_function_file:
             self.tree.insert(t, "end",
-                    text="Drag Function File",
-                    values=(entry.proj.drag_function_file))
+                             text="Drag Function File",
+                             values=(entry.proj.drag_function_file))
         else:
             self.tree.insert(t, "end",
-                    text="Drag Function",
-                    values=(entry.proj.drag_function))
+                             text="Drag Function",
+                             values=(entry.proj.drag_function))
         self.tree.insert(t, "end",
-                text="Density Function",
-                values=(entry.proj.density_function))
+                         text="Density Function",
+                         values=(entry.proj.density_function))
         ffs = entry.proj.copy_form_factors()
         ff = self.tree.insert(t, "end",
-                    text="Form Factors",
-                    values=())
+                              text="Form Factors",
+                              values=())
         for (d, f) in ffs:
             self.tree.insert(ff, "end",
-                    text="%.4f" % (math.degrees(d)),
-                    values=("%.4f" % (f)))
+                             text="%.4f" % (math.degrees(d)),
+                             values=("%.4f" % (f)))
 
     def cancel_selection(self):
         self.selected = None
@@ -479,7 +500,8 @@ class ProjectileCntl(object):
             i = values.index(proj.drag_function)
             self._drag_function.current(i)
         self._drag_function.pack()
-        self._drag_function.bind('<<ComboboxSelected>>', self._drag_function_handler)
+        self._drag_function.bind('<<ComboboxSelected>>',
+                                 self._drag_function_handler)
 
         self._ff_display = FFDisplay(master)
         self._ff_display.set_ffs(proj.copy_form_factors())
@@ -487,7 +509,9 @@ class ProjectileCntl(object):
         t = tk.LabelFrame(master, text="Density Function")
         t.pack(side=tk.TOP, anchor=tk.W)
         values = projectile.Projectile.get_density_functions()
-        self._density_function = ttk.Combobox(t, values=values, state='readonly')
+        self._density_function = ttk.Combobox(t,
+                                              values=values,
+                                              state='readonly')
         self._density_function.delete(0, tk.END)
         if proj.density_function:
             i = values.index(proj.density_function)
@@ -506,7 +530,6 @@ class ProjectileCntl(object):
 
     def _drag_function_handler(self, event):
         value = event.widget.get()
-        values = list(event.widget['values'])
         event.widget.select_clear()
         df = value
         if value == "Specify File":
@@ -675,7 +698,8 @@ class ProjectileCntl(object):
             self._update_projectile(hentry.proj)
             self.refresh()
             return
-        tkmb.showwarning("No More History", "Already at end of the undo history")
+        tkmb.showwarning("No More History",
+                         "Already at end of the undo history")
 
     # popup the history browser
     def popup_history(self):
@@ -816,7 +840,8 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         self._departure_angle.insert(tk.INSERT, "0")
         self._departure_angle.pack()
         self._print_trajectory = tk.IntVar()
-        c = tk.Checkbutton(t, text="Print Trajectory", variable=self._print_trajectory)
+        c = tk.Checkbutton(t, text="Print Trajectory",
+                           variable=self._print_trajectory)
         c.pack(side=tk.LEFT)
         t = tk.Frame(self.frame)
         t.pack(side=tk.TOP)
@@ -967,7 +992,8 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         copy.pack(side=tk.LEFT)
         show = tk.Button(t, text="Show FFs", command=self.popup_ffs)
         show.pack(side=tk.LEFT)
-        update = tk.Button(t, text="Update FFs", command=self.update_projectile_ffs)
+        update = tk.Button(t, text="Update FFs",
+                           command=self.update_projectile_ffs)
         update.pack(side=tk.LEFT)
         self.output = make_output(self.frame,
                                   reset=self.reset_output,
@@ -1120,10 +1146,16 @@ def main():
         empty_args = projectile.Projectile.make_args()
         p = projectile.Projectile(empty_args)
 
+    # set up the global status
+    global CONFIG
+    CONFIG = config.Config()
+    global STATUS
+    STATUS = config.Status()
+
     app = App(root, p)
 
     root.mainloop()
 
+
 if __name__ == '__main__':
     main()
-
