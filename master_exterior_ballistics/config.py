@@ -163,11 +163,12 @@ class Status(object):
         # we return a list of 2-tuples, giving the timestamp and the filename,
         # with only one entry per file - the most recent time it was seen
         tstamps = self._get_tstamps()
-        accum = []
+        accum = {}
         for i in tstamps:
             fn = self.status.get('recent_files', i)
-            accum.append((i, fn))
-        return accum
+            accum[fn] = i
+        t = [(i, fn) for (fn, i) in accum.items()]
+        return t
 
     def get_file_history(self):
         # here we return the full history, with potentially multiple entries
