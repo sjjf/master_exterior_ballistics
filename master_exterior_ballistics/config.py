@@ -167,7 +167,7 @@ class Status(object):
         for i in tstamps:
             fn = self.status.get('recent_files', i)
             accum[fn] = i
-        t = [(i, fn) for (fn, i) in accum.items()]
+        t = [(i, f) for (f, i) in accum.items()]
         return t
 
     def get_file_history(self):
