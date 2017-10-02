@@ -97,6 +97,7 @@ class App(object):
         self._file['menu'] = mb
         mb.add_command(label="New", command=self.new_projectile)
         mb.add_command(label="Open", command=self.load_projectile)
+        mb.add_command(label="Open Recent", command=self.recent_files)
         mb.add_command(label="Save", command=self.save_projectile)
         mb.add_command(label="Save As", command=self.save_projectile_as)
         mb.add_separator()
@@ -198,6 +199,22 @@ class App(object):
 
     def undo_history(self):
         self.pcntl.popup_history()
+
+    def recent_files(self):
+        filename = self.pcntl.popup_recent_files()
+        if filename:
+            try:
+                proj = projectile.Projectile.from_file(filename)
+                self.pcntl.set_projectile(proj)
+                self.last_savefile = filename
+                STATUS.push_recent_file(filename)
+                set_title(proj.name, filename)
+            except projectile.MissingAttribute as e:
+                tkmb.showerror("Invalid Config File",
+                               message=(
+                                   "Could not load file "
+                                   "%s: %s" % (filename, e)
+                                ))
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -385,6 +402,7 @@ class HistoryBrowser(object):
         f = tk.Frame(t)
         f.pack(side=tk.TOP)
         buttons = tk.Frame(f, width=80)
+        buttons.pack(side=tk.TOP)
         self.cancel = tk.Button(buttons,
                                 text="Cancel",
                                 command=self.cancel_selection)
@@ -398,6 +416,9 @@ class HistoryBrowser(object):
             self._add_entry(entry)
 
     def _add_entry(self, entry):
+        if type(entry) != HistoryEntry:
+            print entry
+            raise TypeError("Needs a HistoryEntry")
         ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts))
         t = self.tree.insert("", "end",
                              text=ts,
@@ -451,6 +472,78 @@ class HistoryEntry(object):
     def __init__(self, proj):
         self.ts = time.time()
         self.proj = proj
+
+
+class RecentFileBrowser(object):
+    def __init__(self, master, recent_files):
+        self.recent_files = recent_files
+        self.recent_files_ids = {}
+        self.selected = None
+        self.toplevel = tk.Toplevel()
+        self.toplevel.title = "Recent Files"
+        self.toplevel.transient()
+
+        # this stuff needs to be broken out, but for now I'll keep cutting and
+        # pasting . . .
+        t = tk.LabelFrame(self.toplevel, text="Recent Files")
+        t.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=1)
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        s = tk.Scrollbar(f)
+        s.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree = ttk.Treeview(f,
+                                 columns=("Date", "Directory"),
+                                 height=10,
+                                 yscrollcommand=s.set)
+        self.tree.column("#0", minwidth=200)
+        self.tree.heading("#0", text="Filename")
+        self.tree.column("Date", minwidth=100)
+        self.tree.heading("Date", text="Date")
+        self.tree.column("Directory", minwidth=100)
+        self.tree.heading("Directory", text="Directory")
+        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        s.config(command=self.tree.yview)
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP)
+        buttons = tk.Frame(f, width=80)
+        buttons.pack(side=tk.TOP)
+        self.cancel = tk.Button(buttons,
+                                text="Cancel",
+                                command=self.cancel_selection)
+        self.cancel.pack(side=tk.LEFT)
+        self.select = tk.Button(buttons,
+                                text="Select",
+                                command=self.select)
+        self.select.pack(side=tk.RIGHT, anchor=tk.E)
+
+        for entry in self.recent_files:
+            self._add_entry(entry)
+
+    def _add_entry(self, entry):
+        (timestamp, filename) = entry
+        ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(float(timestamp)))
+        basename = path.basename(filename)
+        dirname = path.dirname(filename)
+        if len(dirname) > 32:
+            dirname = dirname[-30:]
+            if dirname[0] == path.sep:
+                dirname = dirname[1:]
+            dirname = ".." + dirname
+        t = self.tree.insert("", "end",
+                             text=basename,
+                             values=(ts, dirname))
+        self.recent_files_ids[t] = filename
+
+    def cancel_selection(self):
+        self.selected = None
+        self.toplevel.destroy()
+
+    def select(self):
+        iid = self.tree.focus()
+        if not iid:
+            return
+        self.selected = self.recent_files_ids[iid]
+        self.toplevel.destroy()
 
 
 # our master is the top level left panel frame
@@ -574,7 +667,7 @@ class ProjectileCntl(object):
         self._density_function.current(i)
 
     def update_projectile(self, proj):
-        self.history.append(self.projectile)
+        self.push_history(self.projectile)
         self._update_projectile(proj)
 
     def _update_projectile(self, proj):
@@ -709,6 +802,14 @@ class ProjectileCntl(object):
             self._update_projectile(hbrowser.selected.proj)
             self.refresh()
             return
+
+    # popup the recent files browser
+    def popup_recent_files(self):
+        recent_files = STATUS.get_recent_files()
+        rfbrowser = RecentFileBrowser(self.root, recent_files)
+        self.root.wait_window(rfbrowser.toplevel)
+        if rfbrowser.selected:
+            return rfbrowser.selected
 
     def set_projectile(self, proj):
         self.push_history(self.projectile)
