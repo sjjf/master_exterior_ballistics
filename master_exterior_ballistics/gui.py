@@ -730,8 +730,7 @@ class ProjectileCntl(object):
         except ValueError as e:
             tkmb.showwarning("Error loading projectile", "%s" % (e))
             return None
-        if not self._cmp_projectiles(self.projectile, p):
-            self.push_history(self.projectile)
+        self.push_history(self.projectile)
         self.projectile = p
         return p
 
