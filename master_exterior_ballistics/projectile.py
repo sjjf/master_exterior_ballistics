@@ -58,6 +58,83 @@ def rad2str(v):
     return str(math.degrees(v))
 
 
+def cmp_projectiles(p1, p2, verbose=False):
+    if not p1 or not p2:
+        return
+    same = True
+    if p1.name != p2.name:
+        if verbose:
+            print "Name"
+            print "-%s" % (p1.name)
+            print "+%s" % (p2.name)
+        same = False
+    if p1.mass != p2.mass:
+        if verbose:
+            print "Mass"
+            print "-%f" % (p1.mass)
+            print "+%f" % (p2.mass)
+        same = False
+    if p1.caliber != p2.caliber:
+        if verbose:
+            print "Caliber"
+            print "-%f" % (p1.caliber)
+            print "+%f" % (p2.caliber)
+        same = False
+    if p1.mv != p2.mv:
+        if verbose:
+            print "MV"
+            print "-%f" % (p1.mv)
+            print "+%f" % (p2.mv)
+        same = False
+    if p1.drag_function != p2.drag_function:
+        if verbose:
+            print "Drag Function"
+            print "-%s" % (p1.drag_function)
+            print "+%s" % (p2.drag_function)
+        same = False
+    if p1.drag_function_file != p2.drag_function_file:
+        if verbose:
+            print "Drag Function File"
+            print "-%s" % (p1.drag_function_file)
+            print "+%s" % (p2.drag_function_file)
+        same = False
+    if p1.density_function != p2.density_function:
+        if verbose:
+            print "Density Function"
+            print "-%s" % (p1.density_function)
+            print "+%s" % (p2.density_function)
+        same = False
+    if p1.air_density_factor != p2.air_density_factor:
+        if verbose:
+            print "Air Density Factor"
+            print "-%f" % (p1.air_density_factor)
+            print "+%f" % (p2.air_density_factor)
+        same = False
+    ff1 = p1.copy_form_factors()
+    ff2 = p2.copy_form_factors()
+    same_ffs = True
+    if len(ff1) != len(ff2):
+        same_ffs = False
+    else:
+        i = 0
+        while i < len(ff1):
+            (d1, f1) = ff1[i]
+            (d2, f2) = ff2[i]
+            if d1 != d2:
+                same_ffs = False
+                break
+            if f1 != f2:
+                same_ffs = False
+                break
+            i += 1
+    if not same_ffs:
+        if verbose:
+            print "Form Factors"
+            print "-%s" % (repr(ff1))
+            print "+%s" % (repr(ff2))
+        same = False
+    return same
+
 # Trying to move error handling away from the print a message and sys.exit()
 # model, since we're going to be moving this code down the stack and we don't
 # want it bailing out all the way unexpectedly.

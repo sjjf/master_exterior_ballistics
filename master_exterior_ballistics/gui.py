@@ -11,6 +11,7 @@ import tkFileDialog as tkfd
 import tkMessageBox as tkmb
 
 from master_exterior_ballistics import projectile
+from master_exterior_ballistics.projectile import cmp_projectiles
 from master_exterior_ballistics import commands
 from master_exterior_ballistics import config
 from master_exterior_ballistics import arguments
@@ -328,6 +329,112 @@ class FFDisplay(object):
             t.append((da, ff))
         self.ffs = t
         self.show_ffs()
+
+
+class ShotDisplay(object):
+    def __init__(self, master):
+        self.shots = []
+        self.shots_ids = {}
+
+        # Unfortunately, I can't really see a way to make this less klunky -
+        # it's literally cut and pasted with only the labels and a few other
+        # details changed, but . . .
+        t = tk.LabelFrame(master, text="Shots")
+        t.pack(side=tk.TOP, anchor=tk.W)
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP)
+        s = tk.Scrollbar(f)
+        s.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree = ttk.Treeview(f,
+                                 columns=("TR"),
+                                 height=10,
+                                 yscrollcommand=s.set)
+        self.tree.column("#0", width=80)
+        self.tree.heading("#0", text="DA")
+        self.tree.column("TR", width=120)
+        self.tree.heading("TR", text="Target Range")
+        self.tree.pack(side=tk.TOP, fill=tk.Y)
+        s.config(command=self.tree.yview)
+        # this is convoluted, but:
+        #
+        # we have a frame with three sub-frames, firstly the two labels, then
+        # the entry boxes, then finally the Add button
+        f = tk.Frame(t)
+        f.pack(side=tk.TOP)
+        labels = tk.Frame(f, width=20)
+        labels.pack(side=tk.LEFT, anchor=tk.W)
+        dal = tk.Label(labels, text="DA")
+        dal.pack(side=tk.TOP)
+        ffl = tk.Label(labels, text="Target Range")
+        ffl.pack(side=tk.BOTTOM)
+        entries = tk.Frame(f)
+        entries.pack(side=tk.LEFT)
+        self._da = tk.Entry(entries, width=10)
+        self._da.insert(tk.INSERT, "0")
+        self._da.pack(side=tk.TOP, anchor=tk.W)
+        self._tr = tk.Entry(entries, width=10)
+        self._tr.insert(tk.INSERT, "0")
+        self._tr.pack(side=tk.TOP, anchor=tk.W)
+        add = tk.Frame(f)
+        add.pack(side=tk.RIGHT, anchor=tk.E)
+        b = tk.Button(add, text="Add", command=self.add_shot)
+        b.pack(side=tk.RIGHT, anchor=tk.E)
+
+        f = tk.Frame(t)
+        f.pack(side=tk.BOTTOM, anchor=tk.W)
+        b = tk.Button(f, text="Clear All", command=self.clear_shots)
+        b.pack(side=tk.LEFT)
+        b = tk.Button(f, text="Delete", command=self.delete_shot)
+        b.pack(side=tk.RIGHT, anchor=tk.E)
+
+    def set_shots(self, shots):
+        self.shots = shots
+        self.show_shots()
+
+    def get_shots(self):
+        return self.shots
+
+    def clear_shots(self):
+        self.shots = []
+        self.show_shots()
+
+    def show_shots(self):
+        for iid in self.shots_ids.keys():
+            self.tree.delete(iid)
+        self.shots_ids = {}
+        for (da, tr) in self.shots:
+            t = self.tree.insert("", "end",
+                                 text="%.4f" % (da),
+                                 values=("%.1f" % (tr)))
+            self.shots_ids[t] = da
+
+    def add_shot(self):
+        da = float(self._da.get())
+        self._da.delete(0, tk.END)
+        self._da.insert(tk.INSERT, "0")
+        tr = float(self._tr.get())
+        self._tr.delete(0, tk.END)
+        self._tr.insert(tk.INSERT, "0")
+        self.shots.append((da, tr))
+        self.show_shots()
+
+    def delete_shot(self):
+        iid = self.tree.focus()
+        if not iid:
+            return
+        tda = self.shots_ids[iid]
+        t = []
+        found = False
+        for (da, tr) in self.shots:
+            # this is safe because tda and da come from the same source
+            #
+            # note that we only want to delete /one/ of these . . .
+            if tda == da and not found:
+                found = True
+                continue
+            t.append((da, tr))
+        self.shots = t
+        self.show_shots()
 
 
 # This is an attempt to make the undo support more powerful and usable.
@@ -734,44 +841,6 @@ class ProjectileCntl(object):
         self.projectile = p
         return p
 
-    def _cmp_projectiles(self, p1, p2):
-        if not p1 or not p2:
-            return False
-        same = True
-        if p1.name != p2.name:
-            same = False
-        if p1.mass != p2.mass:
-            same = False
-        if p1.caliber != p2.caliber:
-            same = False
-        if p1.mv != p2.mv:
-            same = False
-        if p1.drag_function != p2.drag_function:
-            same = False
-        if p1.drag_function_file != p2.drag_function_file:
-            same = False
-        if p1.density_function != p2.density_function:
-            same = False
-        if p1.air_density_factor != p2.air_density_factor:
-            same = False
-        ff1 = p1.copy_form_factors()
-        ff2 = p2.copy_form_factors()
-        if len(ff1) != len(ff2):
-            same = False
-        else:
-            i = 0
-            while i < len(ff1):
-                (d1, f1) = ff1[i]
-                (d2, f2) = ff2[i]
-                if d1 != d2:
-                    same = False
-                    break
-                if f1 != f2:
-                    same = False
-                    break
-                i += 1
-        return same
-
     # compare the given projectile with the last one we already put on the undo
     # stack, and if it's meaningfully different push it on top
     def push_history(self, proj):
@@ -780,7 +849,7 @@ class ProjectileCntl(object):
             self.history.append(hentry)
             return
 
-        if not self._cmp_projectiles(self.history[-1].proj, proj):
+        if not cmp_projectiles(self.history[-1].proj, proj):
             self.history.append(hentry)
 
     # pop the last history entry off the stack
@@ -878,6 +947,7 @@ class GUIMixin(object):
         self.frame = None
         self.args = None
         self.projectile = None
+        self.history = []
 
     def setup_display(self):
         if self.frame:
@@ -1065,12 +1135,13 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
 
     def __init__(self, master, pcntl):
         self.ffs = []
+        self.inputs = []
         super(MatchFormFactorGUI, self).__init__(master, pcntl)
 
     def setup_display(self):
         self.config_printed = False
         super(MatchFormFactorGUI, self).setup_display()
-        t = tk.LabelFrame(self.frame, text="Shot to Match")
+        t = tk.LabelFrame(self.frame, text="Shots")
         t.pack(side=tk.TOP)
         da = tk.LabelFrame(t, text="Departure Angle")
         da.pack(side=tk.LEFT)
@@ -1082,12 +1153,16 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         self._target_range = tk.Entry(tr)
         self._target_range.insert(tk.INSERT, "0")
         self._target_range.pack()
-        rf = tk.LabelFrame(t, text="")
-        rf.pack(side=tk.LEFT)
-        run = tk.Button(rf, text="Run", command=self.process_gui)
-        run.pack(side=tk.LEFT)
-        t = tk.LabelFrame(self.frame, text="Projectile")
-        t.pack(side=tk.TOP)
+        run_one = tk.Button(t, text="Add", command=self.process_gui)
+        run_one.pack(side=tk.LEFT)
+        run_all = tk.Button(t, text="Run", command=self.repeat_shots)
+        run_all.pack(side=tk.LEFT)
+        show = tk.Button(t, text="Edit", command=self.popup_shots)
+        show.pack(side=tk.LEFT)
+        tf = tk.Frame(self.frame)
+        tf.pack(side=tk.TOP)
+        t = tk.LabelFrame(tf, text="Projectile")
+        t.pack(side=tk.RIGHT)
         copy = tk.Button(t, text="Copy FFs", command=self.copy_projectile_ffs)
         copy.pack(side=tk.LEFT)
         show = tk.Button(t, text="Show FFs", command=self.popup_ffs)
@@ -1100,13 +1175,7 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
                                   save=self.save_output)
         return self.frame
 
-    def process_gui(self):
-        projectile = self.pcntl.get_projectile()
-        if not projectile:
-            return
-        self.projectile = projectile
-
-        self.args = self.projectile.make_args()
+    def add_shot(self):
         try:
             tr = self._target_range.get()
             tr = float(tr)
@@ -1115,10 +1184,32 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         except ValueError as e:
             tkmb.showwarning("Conversion Error", "%s" % (e))
             return
-        self.args.shot = ["%f,%f" % (da, tr)]
+        self.inputs.append((da, tr))
+        return (da, tr)
+
+    def process_gui(self):
+        shot = self.add_shot()
+        self._process_shots([shot])
+
+    def _process_shots(self, shots):
+        projectile = self.pcntl.get_projectile()
+        if not projectile:
+            return
+        if self.projectile:
+            self.projectile.clear_form_factors()
+        projectile.clear_form_factors()
+        if not cmp_projectiles(self.projectile, projectile):
+            self.reset_ffs()
+            self.config_printed = False
+            self.output.insert(tk.INSERT, "\n")
+        self.projectile = projectile
+
+        self.args = self.projectile.make_args()
+        self.args.shot = [ "%f,%f" % (d, t) for (d, t) in shots]
         if not self.run_analysis():
             return
-        self.ffs.extend(self.projectile.copy_form_factors())
+        new_ffs = [(l, ff) for (ff, l, rg, c) in self.shots]
+        self.ffs.extend(new_ffs)
         self.projectile.clear_form_factors()
         self.projectile.unset_departure_angle()
         text = ""
@@ -1132,6 +1223,12 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         self.config_printed = False
         super(MatchFormFactorGUI, self).reset_output()
 
+    def reset_ffs(self):
+        self.ffs = []
+
+    def reset_shots(self):
+        self.inputs = []
+
     def copy_projectile_ffs(self):
         self.projectile = self.pcntl.get_projectile()
         self.ffs = self.projectile.copy_form_factors()
@@ -1144,23 +1241,23 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         self.pcntl.update_projectile(self.projectile)
 
     def popup_ffs(self):
-        self.toplevel = tk.Toplevel()
-        self.toplevel.title("Form Factors")
-        self.toplevel.transient()
-        t = tk.Frame(self.toplevel)
+        self.ff_toplevel = tk.Toplevel()
+        self.ff_toplevel.title("Form Factors")
+        self.ff_toplevel.transient()
+        t = tk.Frame(self.ff_toplevel)
         t.pack(side=tk.TOP)
         self._ffd = FFDisplay(t)
         self._ffd.set_ffs(self.ffs)
-        t = tk.Frame(self.toplevel)
+        t = tk.Frame(self.ff_toplevel)
         t.pack(side=tk.TOP)
-        cancel = tk.Button(t, text="Cancel", command=self.toplevel.destroy)
+        cancel = tk.Button(t, text="Cancel", command=self.ff_toplevel.destroy)
         cancel.pack(side=tk.LEFT, anchor=tk.W)
         save = tk.Button(t, text="Save", command=self.update_local_ffs)
         save.pack(side=tk.RIGHT, anchor=tk.E)
 
     def update_local_ffs(self):
         self.ffs = self._ffd.get_ffs()
-        self.toplevel.destroy()
+        self.ff_toplevel.destroy()
 
     def show_ffs(self):
         text = "\nCurrent Form Factors\n"
@@ -1168,6 +1265,28 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
             text += "%f: %f\n" % (math.degrees(da), ff)
         text += "\n"
         self.output.insert(tk.INSERT, text)
+
+    def popup_shots(self):
+        self.sh_toplevel = tk.Toplevel()
+        self.sh_toplevel.title("Shot History")
+        self.sh_toplevel.transient()
+        t = tk.Frame(self.sh_toplevel)
+        t.pack(side=tk.TOP)
+        self._shd = ShotDisplay(t)
+        self._shd.set_shots(self.inputs)
+        t = tk.Frame(self.sh_toplevel)
+        t.pack(side=tk.TOP)
+        cancel = tk.Button(t, text="Cancel", command=self.sh_toplevel.destroy)
+        cancel.pack(side=tk.LEFT, anchor=tk.W)
+        save = tk.Button(t, text="Save", command=self.update_shots)
+        save.pack(side=tk.RIGHT, anchor=tk.E)
+
+    def update_shots(self):
+        self.inputs = self._shd.get_shots()
+        self.sh_toplevel.destroy()
+
+    def repeat_shots(self):
+        self._process_shots(self.inputs)
 
 
 class RangeTableGUI(GUIMixin, commands.RangeTable):
