@@ -151,15 +151,18 @@ class Status(object):
         self.set_last_dir(os.path.dirname(os.path.abspath(filename)))
 
         # and we then clean out old entries
-        # technically this should be configurable, but . . .
+        # technically this should be configurable, but for simplicity's sake
+        # we're going to leave it as a fixed limit at the moment. This is quite
+        # high so that we don't end up emptying the list if we revisit the same
+        # file over and over, unless we do it a /lot/.
         tstamps = self._get_tstamps()
-        while len(tstamps) >= 10:
+        while len(tstamps) >= 500:
             self.status.remove_option(section, tstamps[0])
             tstamps = self._get_tstamps()
 
         self._write()
 
-    def get_recent_files(self):
+    def get_recent_files(self, count=10):
         # we return a list of 2-tuples, giving the timestamp and the filename,
         # with only one entry per file - the most recent time it was seen
         tstamps = self._get_tstamps()
@@ -169,7 +172,8 @@ class Status(object):
             accum[fn] = i
         t = [(i, f) for (f, i) in accum.items()]
         t.sort(key=lambda (i, f): i, reverse=True)
-        return t
+        # and then we return only the most recent entries
+        return t[:count]
 
     def get_file_history(self):
         # here we return the full history, with potentially multiple entries
