@@ -1026,6 +1026,9 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         projectile = self.pcntl.get_projectile()
         if not projectile:
             return
+        if not cmp_projectiles(self.projectile, projectile):
+            self.config_printed = False
+            self.output.insert(tk.INSERT, "\n")
         self.projectile = projectile
         try:
             self.departure_angle = float(self._departure_angle.get())
@@ -1047,6 +1050,7 @@ class SingleRunGUI(GUIMixin, commands.SingleRun):
         text += self.format_conditions()
         text += self.format_output()
         self.output.insert(tk.INSERT, text)
+        self.output.yview_moveto(1.0)
 
     def reset_output(self):
         super(SingleRunGUI, self).reset_output()
@@ -1081,6 +1085,7 @@ class MaxRangeGUI(GUIMixin, commands.MaxRange):
         text += self.format_output()
         text += "\n"
         self.output.insert(tk.INSERT, text)
+        self.output.yview_moveto(1.0)
 
 
 class MatchRangeGUI(GUIMixin, commands.MatchRange):
@@ -1107,6 +1112,9 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
         projectile = self.pcntl.get_projectile()
         if not projectile:
             return
+        if not cmp_projectiles(self.projectile, projectile):
+            self.config_printed = False
+            self.output.insert(tk.INSERT, "\n")
         self.projectile = projectile
 
         self.args = self.projectile.make_args()
@@ -1125,6 +1133,7 @@ class MatchRangeGUI(GUIMixin, commands.MatchRange):
             self.config_printed = True
         text += self.format_output()
         self.output.insert(tk.INSERT, text)
+        self.output.yview_moveto(1.0)
 
     def reset_output(self):
         self.config_printed = False
@@ -1344,6 +1353,7 @@ class RangeTableGUI(GUIMixin, commands.RangeTable):
         text += "\n"
         text += self.format_output()
         self.output.insert(tk.INSERT, text)
+        self.output.yview_moveto(1.0)
 
 
 def parse_args():
