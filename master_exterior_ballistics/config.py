@@ -60,12 +60,17 @@ def get_config_dir():
 conffile = "config.ini"
 
 
+config_defaults = {
+    "recent_file_count": "500"
+}
+
+
 class Config(object):
     def __init__(self, configdir=None):
         self.configdir = configdir
         if not self.configdir:
             self.configdir = get_config_dir()
-        self.config = configparser()
+        self.config = configparser(config_defaults)
         self.config.read(os.path.join(self.configdir, conffile))
 
     def get(self, section, key):
@@ -156,7 +161,9 @@ class Status(object):
         # high so that we don't end up emptying the list if we revisit the same
         # file over and over, unless we do it a /lot/.
         tstamps = self._get_tstamps()
-        while len(tstamps) >= 500:
+        cfg = Config()
+        count = int(cfg.get('DEFAULT', 'recent_file_count'))
+        while len(tstamps) >= count:
             self.status.remove_option(section, tstamps[0])
             tstamps = self._get_tstamps()
 
