@@ -7,7 +7,8 @@
 Implements the bdist_wix command.
 """
 import subprocess
-import sys, os
+import os
+import sys
 from sysconfig import get_python_version
 
 from distutils.core import Command
@@ -20,6 +21,7 @@ from distutils.util import get_platform
 
 from uuid import uuid4
 import xml.etree.ElementTree as ET
+
 
 # The Wix schema is not simple, but a significant amount of stuff that's in it
 # is either boilerplate or very repetitive. Only a few things are really fiddly
@@ -147,29 +149,29 @@ class Product(object):
             'Compressed': 'yes',
             'SummaryCodepage': '1252',
         }
-        package = ET.SubElement(product, 'Package', attrib=attrib)
+        ET.SubElement(product, 'Package', attrib=attrib)
         attrib = {
             'Id': '1',
             'Cabinet': 'bdist_wix.cab',
             'EmbedCab': 'yes',
             'DiskPrompt': 'CD-ROM #1',
         }
-        media = ET.SubElement(product, 'Media', attrib=attrib)
+        ET.SubElement(product, 'Media', attrib=attrib)
         attrib = {
             'Id': 'DiskPrompt',
             'Value': 'bdist_wix installation [1]',
         }
-        prop = ET.SubElement(product, 'Property', attrib=attrib)
+        ET.SubElement(product, 'Property', attrib=attrib)
         attrib = {
             'Id': 'WixUI_FeatureTree',
         }
-        wixui = ET.SubElement(product, 'UIRef', attrib=attrib)
+        ET.SubElement(product, 'UIRef', attrib=attrib)
         if self.license:
             attrib = {
                 'Id': 'WixUILicenseRtf',
                 'Value': self.license,
             }
-            wixvar = ET.SubElement(product, 'WixVariable', attrib=attrib)
+            ET.SubElement(product, 'WixVariable', attrib=attrib)
         for child in self.children:
             child.serialise(product)
 
@@ -261,7 +263,7 @@ class Shortcut(object):
             'Name': self.name,
             'Advertise': 'yes',
         }
-        shortcut = ET.SubElement(parent, 'Shortcut', attrib=attrib)
+        ET.SubElement(parent, 'Shortcut', attrib=attrib)
 
 
 class Property(object):
@@ -299,7 +301,7 @@ class RegistrySearch(object):
             'Root': self.root,
             'Key': self.key,
         }
-        rs = ET.SubElement(parent, 'RegistrySearch', attrib=attrib)
+        ET.SubElement(parent, 'RegistrySearch', attrib=attrib)
 
 
 class SetProperty(object):
@@ -398,7 +400,7 @@ class ComponentRef(object):
         attrib = {
             'Id': self.id,
         }
-        cr = ET.SubElement(parent, 'ComponentRef', attrib=attrib)
+        ET.SubElement(parent, 'ComponentRef', attrib=attrib)
 
 
 class MajorUpgrade(object):
@@ -413,7 +415,7 @@ class MajorUpgrade(object):
                 'install this version'
             ),
         }
-        upgrade = ET.SubElement(parent, 'MajorUpgrade', attrib=attrib)
+        ET.SubElement(parent, 'MajorUpgrade', attrib=attrib)
 
 
 class Upgrade(object):
@@ -439,7 +441,7 @@ class Upgrade(object):
             'Maximum': self.maxver,
             'IncludeMaximum': 'no',
         }
-        uv = ET.SubElement(upgrade, 'UpgradeVersion', attrib = attrib)
+        ET.SubElement(upgrade, 'UpgradeVersion', attrib = attrib)
 
 
 class bdist_wix (Command):
@@ -494,7 +496,7 @@ class bdist_wix (Command):
 #                    '3.5', '3.6', '3.7', '3.8', '3.9']
     other_version = 'X'
 
-    def initialize_options (self):
+    def initialize_options(self):
         self.bdist_dir = None
         self.plat_name = None
         self.keep_temp = 0
@@ -509,7 +511,7 @@ class bdist_wix (Command):
         self.license_rtf = None
         self.versions = None
 
-    def finalize_options (self):
+    def finalize_options(self):
         self.set_undefined_options('bdist', ('skip_build', 'skip_build'))
 
         if self.bdist_dir is None:
@@ -524,9 +526,10 @@ class bdist_wix (Command):
             self.versions = [self.target_version]
             if not self.skip_build and self.distribution.has_ext_modules()\
                and self.target_version != short_version:
-                raise DistutilsOptionError, \
-                      "target version can only be %s, or the '--skip-build'" \
+                raise DistutilsOptionError(
+                      "target version can only be %s, or the '--skip-build'"
                       " option must be specified" % (short_version,)
+                      )
         else:
             self.versions = list(self.all_versions)
 
@@ -536,27 +539,27 @@ class bdist_wix (Command):
                                    )
 
         if self.pre_install_script:
-            raise DistutilsOptionError, "the pre-install-script feature is not yet implemented"
+            raise DistutilsOptionError("the pre-install-script feature is not yet implemented")
 
         if self.install_script:
-            raise DistutilsOptionError, "the install-script feature is not yet implemented"
+            raise DistutilsOptionError("the install-script feature is not yet implemented")
 
         self.shortcut_dir = self.shortcut_target = self.shortcut_name = None
         if self.shortcut:
             shortcut = self.shortcut.split(':')
             if len(shortcut) < 3:
-                raise DistutilsOptionError, \
+                raise DistutilsOptionError(
                       "invalid shortcut specification"
+                      )
             (self.shortcut_dir, self.shortcut_target, self.shortcut_name) = shortcut
             if self.shortcut_dir != 'start':
-                raise DistutilsOptionError, "only start menu shortcuts are supported"
+                raise DistutilsOptionError("only start menu shortcuts are supported")
 
         self.install_script_install_key = None
         self.install_script_uninstall_key = None
     # finalize_options()
 
-
-    def run (self):
+    def run(self):
         if not self.skip_build:
             self.run_command('build')
 
@@ -601,7 +604,8 @@ class bdist_wix (Command):
         fullname = self.distribution.get_fullname()
         installer_name = self.get_installer_filename(fullname)
         installer_name = os.path.abspath(installer_name)
-        if os.path.exists(installer_name): os.unlink(installer_name)
+        if os.path.exists(installer_name):
+            os.unlink(installer_name)
 
         metadata = self.distribution.metadata
         author = metadata.author
@@ -682,8 +686,9 @@ class bdist_wix (Command):
 
         retval = subprocess.call(['candle.exe', '-out', wixobj_file, wix_file])
         if retval != 0:
-            raise DistutilsExecError, \
+            raise DistutilsExecError(
                   "Failed to run candle.exe on " + wix_file
+                  )
         light_args = [
             'light.exe',
             '-ext', 'WixUIExtension',
@@ -692,8 +697,9 @@ class bdist_wix (Command):
         ]
         retval = subprocess.call(light_args)
         if retval != 0:
-            raise DistutilsExecError, \
+            raise DistutilsExecError(
                   "Failed to run light.exe on " + wixobj_file
+                  )
 
         if hasattr(self.distribution, 'dist_files'):
             tup = 'bdist_wix', self.target_version or 'any', fullname
@@ -718,7 +724,7 @@ class bdist_wix (Command):
         # creating the feature.
         for version in self.versions + [self.other_version]:
             target = "INSTALLDIR" + version
-            name = default = "Python" + version
+            name = "Python" + version
             desc = "Everything - Python " + version
             if version is self.other_version:
                 title = "Python from another location"
@@ -811,7 +817,7 @@ class bdist_wix (Command):
                                                 install_dir_prop)
             exe.set_sequence('After', 'AppSearch')
             sd_val = "[%s]" % (install_dir_prop)
-            sd = self.product.add_set_directory(dir_action,
+            self.product.add_set_directory(dir_action,
                                                 install_dir_prop,
                                                 sd_val,
                                                 install_dir_prop)

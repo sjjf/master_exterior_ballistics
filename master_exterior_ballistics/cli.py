@@ -30,7 +30,6 @@ import argparse
 from master_exterior_ballistics import commands
 from master_exterior_ballistics import projectile
 from master_exterior_ballistics import arguments
-from master_exterior_ballistics import version
 import sys
 
 

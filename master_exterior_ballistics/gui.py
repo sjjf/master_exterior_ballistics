@@ -15,7 +15,6 @@ from master_exterior_ballistics.projectile import cmp_projectiles
 from master_exterior_ballistics import commands
 from master_exterior_ballistics import config
 from master_exterior_ballistics import arguments
-from master_exterior_ballistics import version
 
 # The basic gui app has two panels, a projectile configuration panel on the
 # left, and a command panel. The projectile config panel will have input
@@ -47,6 +46,8 @@ title = "Master Exterior Ballistics"
 title_with = title + " - %s"
 
 master_window = None
+
+
 def set_title(name=None, filename=None):
     if name:
         master_window.title(title_with % (name))
@@ -1214,7 +1215,7 @@ class MatchFormFactorGUI(GUIMixin, commands.MatchFormFactor):
         self.projectile = projectile
 
         self.args = self.projectile.make_args()
-        self.args.shot = [ "%f,%f" % (d, t) for (d, t) in shots]
+        self.args.shot = ["%f,%f" % (d, t) for (d, t) in shots]
         if not self.run_analysis():
             return
         new_ffs = [(l, ff) for (ff, l, rg, c) in self.shots]
@@ -1381,7 +1382,7 @@ def main():
     global STATUS
     STATUS = config.Status()
 
-    app = App(root, p)
+    App(root, p)
 
     root.mainloop()
 

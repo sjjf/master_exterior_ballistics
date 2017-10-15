@@ -33,17 +33,17 @@ def atmosphere_icao(alt):
 
 
 def atmosphere_US(alt):
-    return 10.0**-(0.000045*alt)
+    return 10.0**-(0.000045 * alt)
 
 
 def atmosphere_UK(alt):
-    return 0.1**(0.141*(alt/3048.0))
+    return 0.1**(0.141 * (alt / 3048.0))
 
 
 def interpolate(a, x1, x2, y1, y2):
     # a is a value between x1 and x2 - interpolate a corresponding value
     # between y1 and y2
-    return y1 + ((y2 - y1)*((a - x1)/(x2 - x1)))
+    return y1 + ((y2 - y1) * ((a - x1) / (x2 - x1)))
 
 
 def str2bool(v):
@@ -512,17 +512,17 @@ class Projectile(object):
             print "Failed to find drag function resources: %s" % (e)
 
     def get_KD(self, v, alt):
-        m = v/(CS - (0.004*alt))
+        m = v / (CS - (0.004 * alt))
         i = 1
-        while i < len(self.mach)-1:
+        while i < len(self.mach) - 1:
             if m < self.mach[i]:
                 break
             i += 1
-        m1 = self.mach[i-1]
+        m1 = self.mach[i - 1]
         m2 = self.mach[i]
-        k1 = self.kd[i-1]
+        k1 = self.kd[i - 1]
         k2 = self.kd[i]
-        t = ((m - m1)/(m2 - m1))*(k2 - k1) + k1
+        t = ((m - m1) / (m2 - m1)) * (k2 - k1) + k1
         return t
 
     # as with all the other stuff, we allow the command line arguments to
@@ -609,13 +609,13 @@ class Projectile(object):
         if len(self.departure_angles) == 1:
             return self.form_factors[0]
         i = 1
-        while i < len(self.departure_angles)-1:
+        while i < len(self.departure_angles) - 1:
             if da < self.departure_angles[i]:
                 break
             i += 1
-        da1 = self.departure_angles[i-1]
+        da1 = self.departure_angles[i - 1]
         da2 = self.departure_angles[i]
-        ff1 = self.form_factors[i-1]
+        ff1 = self.form_factors[i - 1]
         ff2 = self.form_factors[i]
         return interpolate(da, da1, da2, ff1, ff2)
 
@@ -635,45 +635,45 @@ class Projectile(object):
     # somewhere else that makes it all work, because it does seem to work . . .
     def ballistic_coefficient(self, FF):
         # note that this needs to be in cm rather than mm
-        d = self.caliber/10.0
-        return self.mass/(FF*self.air_density_factor*pow(d, 2))
+        d = self.caliber / 10.0
+        return self.mass / (FF * self.air_density_factor * pow(d, 2))
 
     def retardation(self, alt, v, l, C):
         d = self.atmosphere(alt)
         G = gravity(alt)
         KD = self.get_KD(v, alt)
-        R = KD*(DF/10000.0)*pow(v, 2)
-        E = R/(C/d)
+        R = KD * (DF / 10000.0) * pow(v, 2)
+        E = R / (C / d)
         H = E * math.cos(l)
         J = E * math.sin(l) + G
         return (H, J)
 
     def iterate_estimate(self, alt, v, l, C, x0, y0, h0, j0):
         (H1, J1) = self.retardation(alt, v, l, C)
-        H2 = (h0 + H1)/2.0
-        J2 = (j0 + J1)/2.0
-        X2 = x0 - (H2*self.timestep)
-        Y2 = y0 - (J2*self.timestep)
+        H2 = (h0 + H1) / 2.0
+        J2 = (j0 + J1) / 2.0
+        X2 = x0 - (H2 * self.timestep)
+        Y2 = y0 - (J2 * self.timestep)
         V2 = math.sqrt(pow(X2, 2) + pow(Y2, 2))
-        L2 = math.atan(Y2/X2)
+        L2 = math.atan(Y2 / X2)
         return (X2, Y2, V2, L2)
 
     def step(self, alt, v, l, C):
-        X0 = v*math.cos(l)
-        Y0 = v*math.sin(l)
+        X0 = v * math.cos(l)
+        Y0 = v * math.sin(l)
         (H0, J0) = self.retardation(alt, v, l, C)
         X1 = X0 - (H0 * self.timestep)
         Y1 = Y0 - (J0 * self.timestep)
         V1 = math.sqrt(pow(X1, 2) + pow(Y1, 2))
-        L1 = math.atan(Y1/X1)
-        MY1 = (Y0 + Y1)/2.0
+        L1 = math.atan(Y1 / X1)
+        MY1 = (Y0 + Y1) / 2.0
         A1 = MY1 * self.timestep
         (X2, Y2, V2, L2) = self.iterate_estimate(alt + A1, V1, L1, C, X0, Y0, H0, J0)
-        MY2 = (Y0 + Y2)/2.0
+        MY2 = (Y0 + Y2) / 2.0
         A2 = MY2 * self.timestep
         (X3, Y3, V3, L3) = self.iterate_estimate(alt + A2, V2, L2, C, X0, Y0, H0, J0)
-        MY3 = (Y0 + Y3)/2.0
-        MX3 = (X0 + X3)/2.0
+        MY3 = (Y0 + Y3) / 2.0
+        MX3 = (X0 + X3) / 2.0
         FH = MX3 * self.timestep
         FV = MY3 * self.timestep
         return (FH, FV, V3, L3)
@@ -756,20 +756,20 @@ class Projectile(object):
         rg_low = -1000
         rg_high = 0
         da_max = None
-        mid = (low + high)/2.0
-        l = (mid + low)/2.0
-        h = (mid + high)/2.0
+        mid = (low + high) / 2.0
+        l = (mid + low) / 2.0
+        h = (mid + high) / 2.0
         (_, rg_low, _, _) = self.one_shot(l)
         (_, rg_high, _, _) = self.one_shot(h)
         self.count = 2
         while abs(high - low) > tolerance:
             if rg_low < rg_high:
                 low = l
-                l = (mid + low)/2.0
+                l = (mid + low) / 2.0
                 (_, rg_low, _, _) = self.one_shot(l)
             else:
                 high = h
-                h = (mid + high)/2.0
+                h = (mid + high) / 2.0
                 (_, rg_high, _, _) = self.one_shot(h)
             if rg_low > rg_max:
                 rg_max = rg_low
@@ -777,7 +777,7 @@ class Projectile(object):
             if rg_high > rg_max:
                 rg_max = rg_high
                 da_max = h
-            mid = (low + high)/2.0
+            mid = (low + high) / 2.0
             self.count += 1
         self.Max_Range = (rg_max, da_max)
         return (rg_max, da_max)
@@ -808,13 +808,13 @@ class Projectile(object):
         mid = high
         rg = 1.0e30
         self.count = 0
-        while abs(target_range - rg) > tolerance/2:
+        while abs(target_range - rg) > tolerance / 2:
             if rg > target_range:
                 high = mid
             elif rg < target_range:
                 low = mid
             l1 = mid
-            mid = (high + low)/2.0
+            mid = (high + low) / 2.0
             rg1 = rg
             (tt, rg, iv, il) = self.one_shot(mid)
             if rg < rg1 and l1 < mid:
@@ -838,15 +838,15 @@ class Projectile(object):
         self.update_form_factors(l, ff)
         (_, rg, _, _) = self.one_shot(l)
         self.count = 1
-        while abs(tr - rg) > tol/2.0 and ff > 0.000001:
-            ff = ff * (rg/tr)
+        while abs(tr - rg) > tol / 2.0 and ff > 0.000001:
+            ff = ff * (rg / tr)
             self.clear_form_factors()
             self.update_form_factors(l, ff)
             (_, rg, _, _) = self.one_shot(l)
             self.count += 1
         if ff <= 0.000001:
-            raise ValueError("Could not converge - FF at %.6f " % (ff)
-                             + "after %d iterations" % (self.count))
+            raise ValueError("Could not converge - FF at %.6f " % (ff) +
+                    "after %d iterations" % (self.count))
         return (ff, l, rg)
 
     def format_configuration(self):

@@ -338,7 +338,7 @@ class RangeTableAngle(RangeTableCommon):
         self.air_density_factor = self.projectile.air_density_factor
 
         self.shots = []
-        while l <= ((end*100+1)/100) and l < 90:
+        while l <= ((end * 100 + 1) / 100) and l < 90:
             (tt, rg, iv, il) = self.projectile.one_shot(l)
             self.shots.append((tt, rg, iv, il, l))
             l += self.increment
