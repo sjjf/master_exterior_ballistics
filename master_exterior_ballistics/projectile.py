@@ -135,6 +135,7 @@ def cmp_projectiles(p1, p2, verbose=False):
         same = False
     return same
 
+
 # Trying to move error handling away from the print a message and sys.exit()
 # model, since we're going to be moving this code down the stack and we don't
 # want it bailing out all the way unexpectedly.
@@ -844,7 +845,7 @@ class Projectile(object):
             (_, rg, _, _) = self.one_shot(l)
             self.count += 1
         if ff <= 0.000001:
-            raise ValueError("Could not converge - FF at %.6f " %(ff)
+            raise ValueError("Could not converge - FF at %.6f " % (ff)
                              + "after %d iterations" % (self.count))
         return (ff, l, rg)
 
