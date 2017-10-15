@@ -201,4 +201,4 @@ class Status(object):
             fn = self.status.get('recent_files', tstamps[-1])
             return (tstamps[-1], fn)
         except IndexError:
-            return None
+            return (None, None)
