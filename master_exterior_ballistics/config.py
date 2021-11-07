@@ -14,9 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from ConfigParser import SafeConfigParser as configparser
-from ConfigParser import NoSectionError
-from ConfigParser import NoOptionError
+from configparser import SafeConfigParser as configparser
+from configparser import NoSectionError
+from configparser import NoOptionError
 import os
 import sys
 from time import time

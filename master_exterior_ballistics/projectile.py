@@ -1,6 +1,6 @@
 import argparse
 import math
-from ConfigParser import SafeConfigParser as cfgparser
+from configparser import SafeConfigParser as cfgparser
 from os import path
 import pkg_resources
 import sys
