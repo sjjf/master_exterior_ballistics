@@ -596,7 +596,7 @@ class Projectile(object):
     def sort_form_factors(self):
         if len(self.departure_angles) == 0:
             return
-        z = zip(self.departure_angles, self.form_factors)
+        z = list(zip(self.departure_angles, self.form_factors))
         z.sort(key=lambda k: k[0])
         tda, tff = zip(*z)
         self.departure_angles = list(tda)
@@ -621,7 +621,7 @@ class Projectile(object):
         return interpolate(da, da1, da2, ff1, ff2)
 
     def copy_form_factors(self):
-        return zip(self.departure_angles, self.form_factors)
+        return list(zip(self.departure_angles, self.form_factors))
 
     def format_form_factors(self):
         text = ""
