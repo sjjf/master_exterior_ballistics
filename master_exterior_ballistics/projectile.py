@@ -331,7 +331,8 @@ class Projectile(object):
         cfg.set("projectile", "mass", repr(self.mass))
         cfg.set("projectile", "caliber", repr(self.caliber))
         if self.drag_function_file:
-            cfg.set("projectile", "drag_function_file", self.drag_function_file)
+            cfg.set("projectile", "drag_function_file",
+                    self.drag_function_file)
         else:
             cfg.set("projectile", "drag_function", self.drag_function)
         cfg.set("projectile", "density_function", self.density_function)
@@ -343,7 +344,8 @@ class Projectile(object):
         cfg.add_section("initial_conditions")
         cfg.set("initial_conditions", "altitude", repr(self.altitude))
         cfg.set("initial_conditions", "mv", repr(self.mv))
-        cfg.set("initial_conditions", "air_density_factor", repr(self.air_density_factor))
+        cfg.set("initial_conditions", "air_density_factor",
+                repr(self.air_density_factor))
 
         cfg.add_section("simulation")
         cfg.set("simulation", "timestep", repr(self.timestep))
@@ -372,7 +374,8 @@ class Projectile(object):
             if section == "form_factor":
                 self.clear_form_factors()
                 for (da, ff) in cfg.items(section):
-                    self.update_form_factors(math.radians(float(da)), float(ff))
+                    self.update_form_factors(
+                        math.radians(float(da)), float(ff))
             else:
                 for (attr, value) in cfg.items(section):
                     try:
@@ -394,8 +397,8 @@ class Projectile(object):
     def set_altitude(self, alt):
         self.altitude = alt
 
-    def set_departure_angle(self, l):
-        self.departure_angle = l
+    def set_departure_angle(self, departure_angle):
+        self.departure_angle = departure_angle
 
     # sometimes we want to get rid of this
     def unset_departure_angle(self):
@@ -632,8 +635,9 @@ class Projectile(object):
     # this doesn't fit with the definition from the paper, but the number we
     # get from the code is less than 1 - I'm guessing it's just a question of
     # units (the calculation in the paper would result in units of kg/mm^2,
-    # whereas this gives us kg/cm^2). Presumably there's a scaling factor hidden
-    # somewhere else that makes it all work, because it does seem to work . . .
+    # whereas this gives us kg/cm^2). Presumably there's a scaling factor
+    # hidden somewhere else that makes it all work, because it does seem to
+    # work . . .
     def ballistic_coefficient(self, FF):
         # note that this needs to be in cm rather than mm
         d = self.caliber / 10.0
@@ -669,10 +673,12 @@ class Projectile(object):
         L1 = math.atan(Y1 / X1)
         MY1 = (Y0 + Y1) / 2.0
         A1 = MY1 * self.timestep
-        (X2, Y2, V2, L2) = self.iterate_estimate(alt + A1, V1, L1, C, X0, Y0, H0, J0)
+        (X2, Y2, V2, L2) = self.iterate_estimate(
+            alt + A1, V1, L1, C, X0, Y0, H0, J0)
         MY2 = (Y0 + Y2) / 2.0
         A2 = MY2 * self.timestep
-        (X3, Y3, V3, L3) = self.iterate_estimate(alt + A2, V2, L2, C, X0, Y0, H0, J0)
+        (X3, Y3, V3, L3) = self.iterate_estimate(
+            alt + A2, V2, L2, C, X0, Y0, H0, J0)
         MY3 = (Y0 + Y3) / 2.0
         MX3 = (X0 + X3) / 2.0
         FH = MX3 * self.timestep
@@ -691,9 +697,11 @@ class Projectile(object):
         (ta, ttt, tr, tv, tl) = trajectory[0]
         del trajectory[0]
         count = 1
-        text += "%.2f %.2f %.2f %.2f %.2f\n" % (ttt, tr, ta, math.degrees(tl), tv)
+        text += "%.2f %.2f %.2f %.2f %.2f\n" % (ttt,
+                                                tr, ta, math.degrees(tl), tv)
         for (ta, ttt, tr, tv, tl) in trajectory:
-            text += "%.2f %.2f %.2f %.2f %.2f\n" % (ttt, tr, ta, math.degrees(tl), tv)
+            text += "%.2f %.2f %.2f %.2f %.2f\n" % (
+                ttt, tr, ta, math.degrees(tl), tv)
             if count == 5:
                 count = 0
                 text += "\n"
@@ -735,20 +743,21 @@ class Projectile(object):
         l = interpolate(0, alt, alt1, l, l1)
         return (tt, rg, mv, l)
 
-    # Knowing the maximum range is important for matching a range using the binary
-    # search algorithm we're using below - this is because a binary search is only
-    # reliable when the search space is monotonically increasing or decreasing. In
-    # the case of ballistic trajectories the range increases smoothly to a maximum,
-    # then decreases smoothly down to zero as you continue to increase the
-    # departure angle - we're generally only interested in the up side of this
-    # curve, so we want to use a binary search on the range space from zero up to
-    # the maximum.
+    # Knowing the maximum range is important for matching a range using the
+    # binary search algorithm we're using below - this is because a binary
+    # search is only reliable when the search space is monotonically increasing
+    # or decreasing. In the case of ballistic trajectories the range increases
+    # smoothly to a maximum, then decreases smoothly down to zero as you
+    # continue to increase the departure angle - we're generally only
+    # interested in the up side of this curve, so we want to use a binary
+    # search on the range space from zero up to the maximum.
     #
-    # Since we know that the curve is smooth and well behaved we can use a pretty
-    # simple approach to find the maximum: bracketing the maximum value and then
-    # narrowing the window until it converges on the maximum. At each iteration we
-    # replace the edge of the window that corresponds to the lowest range with a
-    # point half-way between the old edge and the mid point.
+    # Since we know that the curve is smooth and well behaved we can use a
+    # pretty simple approach to find the maximum: bracketing the maximum value
+    # and then narrowing the window until it converges on the maximum. At each
+    # iteration we replace the edge of the window that corresponds to the
+    # lowest range with a point half-way between the old edge and the mid
+    # point.
     def max_range(self):
         tolerance = math.radians(0.05)
         low = math.radians(0.0)
@@ -785,8 +794,8 @@ class Projectile(object):
 
     # split out so that we can reuse this to calculate range tables
     #
-    # Note: this will converge on a departure angle of 90 degrees if the projectile
-    # can't actually achieve the target range.
+    # Note: this will converge on a departure angle of 90 degrees if the
+    # projectile can't actually achieve the target range.
     def match_range(self,
                     target_range,
                     tolerance,
@@ -828,7 +837,8 @@ class Projectile(object):
                 if abs(high - low) < 0.0001:
                     break
                 else:
-                    raise ValueError("Could not converge - iteration limit exceeded")
+                    raise ValueError(
+                        "Could not converge - iteration limit exceeded")
         if mid == math.radians(90.0) and abs(rg) < 0.01:
             raise ValueError("Could not converge")
         return (tt, rg, iv, il, mid)
@@ -847,7 +857,7 @@ class Projectile(object):
             self.count += 1
         if ff <= 0.000001:
             raise ValueError("Could not converge - FF at %.6f " % (ff) +
-                    "after %d iterations" % (self.count))
+                             "after %d iterations" % (self.count))
         return (ff, l, rg)
 
     def format_configuration(self):
@@ -871,8 +881,8 @@ class Projectile(object):
         else:
             text += " Drag Function: %s\n" % (self.drag_function)
         text += " Density Function: %s\n" % (self.density_function)
-        # we don't want to do this calculation here, so we cache it if it's already
-        # been done and use that value
+        # we don't want to do this calculation here, so we cache it if it's
+        # already been done and use that value
         if self.Max_Range:
             text += "Est. max range: %.1fm at %.4fdeg\n" % (self.Max_Range[0],
                                                             math.degrees(self.Max_Range[1]))
@@ -887,7 +897,8 @@ class Projectile(object):
         text += " Velocity: %.3fm/s\n" % (self.mv)
         # departure angle isn't always set
         if self.departure_angle:
-            text += " Departure Angle: %.4fdeg\n" % (math.degrees(self.departure_angle))
+            text += " Departure Angle: %.4fdeg\n" % (
+                math.degrees(self.departure_angle))
         text += " Air Density Factor: %.6f\n" % (self.air_density_factor)
         return text
 

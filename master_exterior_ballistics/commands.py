@@ -65,19 +65,19 @@ class SingleRun(Command):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('single',
-            description="Simulate a single shot",
-            help="Simulate a single shot")
+                                      description="Simulate a single shot",
+                                      help="Simulate a single shot")
         g = parser.add_argument_group('shot specifics')
         g.add_argument('-l', '--departure-angle',
-            action='store',
-            required=True,
-            type=float,
-            help="Departure Angle")
+                       action='store',
+                       required=True,
+                       type=float,
+                       help="Departure Angle")
         g.add_argument('-t', '--print-trajectory', '--show-trajectory',
-            dest='show_trajectory',
-            action='store_true',
-            required=False,
-            help="Print projectile trajectory")
+                       dest='show_trajectory',
+                       action='store_true',
+                       required=False,
+                       help="Print projectile trajectory")
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)
@@ -93,7 +93,8 @@ class MaxRange(Command):
     def format_output(self):
         text = "Initial Velocity: %.4fm/s\n" % (self.projectile.mv)
         text += "Maximum range: %.2fm\n" % (self.rg_max)
-        text += "Departure Angle for maximum range: %.4fdeg\n" % (math.degrees(self.da))
+        text += "Departure Angle for maximum range: %.4fdeg\n" % (
+            math.degrees(self.da))
         return text
 
     def run_analysis(self):
@@ -101,14 +102,20 @@ class MaxRange(Command):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('max-range',
-            description="Estimate the maximum range for a given projectile configuration",
-            help="Find the maximum range for a given projectile configuration")
+                                      description=(
+                                          'Estimate the maximum range for a'
+                                          ' given projectile configuration'
+                                      ),
+                                      help=(
+                                          'Find the maximum range for a given'
+                                          ' projectile configuration'
+                                      ))
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)
         arguments.add_common_args(parser)
         parser.set_defaults(func=self.process_command_line,
-            print_trajectory=False)
+                            print_trajectory=False)
         return parser
 
 
@@ -146,29 +153,37 @@ class MatchRange(Command):
         for tr in targets:
             if tr > self.rg_max + 1:
                 self.runtime_notes += "Target range %.0fm " % (tr)
-                self.runtime_notes += "is outside maximum range (%.0fm)\n" % (self.rg_max)
+                self.runtime_notes += "is outside maximum range (%.0fm)\n" % (
+                    self.rg_max)
                 continue
             try:
                 (tt, rg, iv, il, l) = self.projectile.match_range(tr, tolerance)
             except ValueError:
-                self.runtime_notes += "Could not converge on range %.1fm\n" % (tr)
+                self.runtime_notes += "Could not converge on range %.1fm\n" % (
+                    tr)
                 continue
             self.shots.append((tr, tt, rg, iv, il, l, self.projectile.count))
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('match-range',
-            description="Match the target range by adjusting departure angle",
-            help="Find the departure angle to achieve the specified target range")
+                                      description=(
+                                          'Match the target range by adjusting'
+                                          ' departure angle'
+                                      ),
+                                      help=(
+                                          'Find the departure angle to achieve'
+                                          ' the specified target range'
+                                      ))
         g = parser.add_argument_group('match multiple shots')
         g.add_argument('--target-range',
-            action='store',
-            required=False,
-            nargs='+',
-            metavar='RANGE',
-            help=(
-                'Set of target ranges - may be used more than once, with each '
-                'range being matched'
-            ))
+                       action='store',
+                       required=False,
+                       nargs='+',
+                       metavar='RANGE',
+                       help=(
+                           'Set of target ranges - may be used more than once,'
+                           ' with each range being matched'
+                       ))
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)
@@ -217,25 +232,34 @@ class MatchFormFactor(Command):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('find-ff',
-            description="Match the shot(s) specified by adjusting the form fator",
-            help="Find the form factor to match the specified shots")
+                                      description=(
+                                          'Match the shot(s) specified by'
+                                          ' adjusting the form factor'
+                                      ),
+                                      help=(
+                                          'Find the form factor to match the'
+                                          ' specified shots'
+                                      ))
         parser.add_argument('--save-to-config',
-            action='store',
-            required=False,
-            metavar='CONFIG',
-            help='Save the calculated form factors to the given config file')
+                            action='store',
+                            required=False,
+                            metavar='CONFIG',
+                            help=(
+                                'Save the calculated form factors to the given'
+                                ' config file'
+                            ))
         arguments.add_projectile_args(parser)
         arguments.add_conditions_args(parser)
         g = parser.add_argument_group('match multiple shots')
         g.add_argument('--shot',
-            action='store',
-            required=False,
-            metavar='A,R',
-            nargs='+',
-            help=(
-                'Set of <angle,range> tuples - may be used more than once, with '
-                'each tuple being simulated'
-            ))
+                       action='store',
+                       required=False,
+                       metavar='A,R',
+                       nargs='+',
+                       help=(
+                           'Set of <angle,range> tuples - may be used more'
+                           'than once, with each tuple being simulated'
+                       ))
         arguments.add_match_args(parser)
         arguments.add_common_args(parser)
         parser.set_defaults(form_factor=1.0)
@@ -260,13 +284,13 @@ class RangeTableCommon(Command):
         text += "        Angle      Fall   Flight    Vel.\n"
         text += "-------------------------------------------\n"
         for (tt, rg, iv, il, l) in self.shots:
-                text += "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f\n" % (
-                    rg,
-                    math.degrees(l),
-                    math.degrees(il),
-                    tt,
-                    iv
-                )
+            text += "% 6.0f % 8.4f % 8.4f % 6.2f % 8.2f\n" % (
+                rg,
+                math.degrees(l),
+                math.degrees(il),
+                tt,
+                iv
+            )
         return text
 
 
@@ -299,27 +323,33 @@ class RangeTable(RangeTableCommon):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('range-table',
-            description="Calculate a range table based on range increments",
-            help="Calculate a range table based on range increments")
+                                      description=(
+                                          'Calculate a range table based on'
+                                          ' range increments'
+                                      ),
+                                      help=(
+                                          'Calculate a range table based on'
+                                          ' range increments'
+                                      ))
         g = parser.add_argument_group('range table options')
         g.add_argument('--increment',
-            action='store',
-            required=False,
-            type=float,
-            default=100.0,
-            help='Range steps for range table')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=100.0,
+                       help='Range steps for range table')
         g.add_argument('--start',
-            action='store',
-            required=False,
-            type=float,
-            default=100.0,
-            help='Starting range')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=100.0,
+                       help='Starting range')
         g.add_argument('--end',
-            action='store',
-            required=False,
-            type=float,
-            default=100000.0,
-            help='End range')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=100000.0,
+                       help='End range')
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)
@@ -345,27 +375,33 @@ class RangeTableAngle(RangeTableCommon):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('range-table-angle',
-            description="Calculate a range table based on departure angle increments",
-            help="Calculate a range table based on departure angle")
+                                      description=(
+                                          'Calculate a range table based on'
+                                          ' departure angle increments'
+                                      ),
+                                      help=(
+                                          'Calculate a range table based on'
+                                          ' departure angle'
+                                      ))
         g = parser.add_argument_group('range table options')
         g.add_argument('--increment',
-            action='store',
-            required=False,
-            type=float,
-            default=1.0,
-            help='Departure angle steps for range table')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=1.0,
+                       help='Departure angle steps for range table')
         g.add_argument('--start',
-            action='store',
-            required=False,
-            type=float,
-            default=1.0,
-            help='Starting departure angle')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=1.0,
+                       help='Starting departure angle')
         g.add_argument('--end',
-            action='store',
-            required=False,
-            type=float,
-            default=50.0,
-            help='End departure angle')
+                       action='store',
+                       required=False,
+                       type=float,
+                       default=50.0,
+                       help='End departure angle')
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)
@@ -386,13 +422,16 @@ class MakeConfig(Command):
 
     def add_arguments(self, subparser):
         parser = subparser.add_parser('make-config',
-            description="Create a configuration file with the specified contents",
-            help="Create a config file")
+                                      description=(
+                                          'Create a configuration file with'
+                                          'the specified contents'
+                                      ),
+                                      help="Create a config file")
         g = parser.add_argument_group('config file details')
         g.add_argument('--filename',
-            action='store',
-            required=True,
-            help="Config file name")
+                       action='store',
+                       required=True,
+                       help="Config file name")
         arguments.add_projectile_args(parser)
         arguments.add_form_factors(parser)
         arguments.add_conditions_args(parser)

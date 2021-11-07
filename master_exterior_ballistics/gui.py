@@ -151,9 +151,9 @@ class App(object):
     def save_projectile_as(self):
         proj = self.pcntl.get_projectile()
         filename = tkfd.asksaveasfilename(filetypes=[
-                                            ("Projectile Config", "*.conf"),
-                                            ("All Files", "*")
-                                          ])
+            ("Projectile Config", "*.conf"),
+            ("All Files", "*")
+        ])
         if not filename:
             return
         self.last_savefile = filename
@@ -216,7 +216,7 @@ class App(object):
                                message=(
                                    "Could not load file "
                                    "%s: %s" % (filename, e)
-                                ))
+                               ))
 
 
 # this is broken out so that it can be reused in multiple contexts
@@ -814,10 +814,12 @@ class ProjectileCntl(object):
         self._mv.insert(tk.INSERT, repr(self.projectile.mv))
         self._ff_display.set_ffs(self.projectile.copy_form_factors())
         if self.projectile.drag_function_file:
-            self._update_drag_function_combobox(self.projectile.drag_function_file)
+            self._update_drag_function_combobox(
+                self.projectile.drag_function_file)
         else:
             self._update_drag_function_combobox(self.projectile.drag_function)
-        self._update_density_function_combobox(self.projectile.density_function)
+        self._update_density_function_combobox(
+            self.projectile.density_function)
         self._adf.delete(0, tk.END)
         self._adf.insert(tk.INSERT, self.projectile.air_density_factor)
         set_title(self.projectile.name, self.projectile.filename)
@@ -961,10 +963,10 @@ class GUIMixin(object):
         return self.frame
 
     def process_gui(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def update_output(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def save_output(self):
         filename = tkfd.asksaveasfilename(
@@ -979,7 +981,7 @@ class GUIMixin(object):
         self.output.delete(1.0, tk.END)
 
     def reset_projectile(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def run_analysis(self):
         try:

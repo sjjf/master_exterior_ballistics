@@ -107,7 +107,7 @@ def parse_args():
     subparsers = parser.add_subparsers(
         title="Modes of operation",
         description="<mode> -h/--help for mode help"
-        )
+    )
 
     # note that these are scoped to here, but the objects are still accessible
     # because they're bound into the parser object (via the
