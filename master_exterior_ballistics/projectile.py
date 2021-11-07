@@ -474,8 +474,9 @@ class Projectile(object):
             with open(self.drag_function_file) as df:
                 self._load_drag_function(df)
         except IOError as e:
-            print("Could not load drag function from file ", end=' ')
-            print("%s: %s" % (self.drag_function_file, e))
+            msg = "Could not load drag function from file "
+            msg += "%s: %s" % (self.drag_function_file, e)
+            print(msg)
             sys.exit(1)
 
     def _load_drag_function_std(self):
