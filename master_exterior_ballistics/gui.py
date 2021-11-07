@@ -749,7 +749,7 @@ class ProjectileCntl(object):
     def _update_drag_function_combobox(self, value):
         values = []
         values.extend(self.std_drag_functions)
-        values.extend(self.extra_drag_functions.keys())
+        values.extend(list(self.extra_drag_functions))
         values.append("Specify File")
         if value not in values:
             raise ValueError("Invalid drag function %s" % (value))
