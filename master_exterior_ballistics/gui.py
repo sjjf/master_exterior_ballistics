@@ -525,7 +525,7 @@ class HistoryBrowser(object):
 
     def _add_entry(self, entry):
         if type(entry) != HistoryEntry:
-            print entry
+            print(entry)
             raise TypeError("Needs a HistoryEntry")
         ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts))
         t = self.tree.insert("", "end",

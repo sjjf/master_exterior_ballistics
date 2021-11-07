@@ -64,51 +64,51 @@ def cmp_projectiles(p1, p2, verbose=False):
     same = True
     if p1.name != p2.name:
         if verbose:
-            print "Name"
-            print "-%s" % (p1.name)
-            print "+%s" % (p2.name)
+            print("Name")
+            print("-%s" % (p1.name))
+            print("+%s" % (p2.name))
         same = False
     if p1.mass != p2.mass:
         if verbose:
-            print "Mass"
-            print "-%f" % (p1.mass)
-            print "+%f" % (p2.mass)
+            print("Mass")
+            print("-%f" % (p1.mass))
+            print("+%f" % (p2.mass))
         same = False
     if p1.caliber != p2.caliber:
         if verbose:
-            print "Caliber"
-            print "-%f" % (p1.caliber)
-            print "+%f" % (p2.caliber)
+            print("Caliber")
+            print("-%f" % (p1.caliber))
+            print("+%f" % (p2.caliber))
         same = False
     if p1.mv != p2.mv:
         if verbose:
-            print "MV"
-            print "-%f" % (p1.mv)
-            print "+%f" % (p2.mv)
+            print("MV")
+            print("-%f" % (p1.mv))
+            print("+%f" % (p2.mv))
         same = False
     if p1.drag_function != p2.drag_function:
         if verbose:
-            print "Drag Function"
-            print "-%s" % (p1.drag_function)
-            print "+%s" % (p2.drag_function)
+            print("Drag Function")
+            print("-%s" % (p1.drag_function))
+            print("+%s" % (p2.drag_function))
         same = False
     if p1.drag_function_file != p2.drag_function_file:
         if verbose:
-            print "Drag Function File"
-            print "-%s" % (p1.drag_function_file)
-            print "+%s" % (p2.drag_function_file)
+            print("Drag Function File")
+            print("-%s" % (p1.drag_function_file))
+            print("+%s" % (p2.drag_function_file))
         same = False
     if p1.density_function != p2.density_function:
         if verbose:
-            print "Density Function"
-            print "-%s" % (p1.density_function)
-            print "+%s" % (p2.density_function)
+            print("Density Function")
+            print("-%s" % (p1.density_function))
+            print("+%s" % (p2.density_function))
         same = False
     if p1.air_density_factor != p2.air_density_factor:
         if verbose:
-            print "Air Density Factor"
-            print "-%f" % (p1.air_density_factor)
-            print "+%f" % (p2.air_density_factor)
+            print("Air Density Factor")
+            print("-%f" % (p1.air_density_factor))
+            print("+%f" % (p2.air_density_factor))
         same = False
     ff1 = p1.copy_form_factors()
     ff2 = p2.copy_form_factors()
@@ -129,9 +129,9 @@ def cmp_projectiles(p1, p2, verbose=False):
             i += 1
     if not same_ffs:
         if verbose:
-            print "Form Factors"
-            print "-%s" % (repr(ff1))
-            print "+%s" % (repr(ff2))
+            print("Form Factors")
+            print("-%s" % (repr(ff1)))
+            print("+%s" % (repr(ff2)))
         same = False
     return same
 
@@ -352,7 +352,7 @@ class Projectile(object):
             with open(filename, "w") as outfile:
                 cfg.write(outfile)
             return
-        print ""
+        print("")
         cfg.write(sys.stdout)
 
     def load_config(self, args):
@@ -422,7 +422,7 @@ class Projectile(object):
         if self.density_function == "ICAO":
             self.atmosphere = atmosphere_icao
             return
-        print "No atmosphere model specified?"
+        print("No atmosphere model specified?")
 
     def set_density_function(self, df):
         self._set_atmosphere(df)
@@ -474,8 +474,8 @@ class Projectile(object):
             with open(self.drag_function_file) as df:
                 self._load_drag_function(df)
         except IOError as e:
-            print "Could not load drag function from file ",
-            print "%s: %s" % (self.drag_function_file, e)
+            print("Could not load drag function from file ", end=' ')
+            print("%s: %s" % (self.drag_function_file, e))
             sys.exit(1)
 
     def _load_drag_function_std(self):
@@ -509,7 +509,7 @@ class Projectile(object):
             dfs.sort()
             return dfs
         except OSError as e:
-            print "Failed to find drag function resources: %s" % (e)
+            print("Failed to find drag function resources: %s" % (e))
 
     def get_KD(self, v, alt):
         m = v / (CS - (0.004 * alt))
@@ -702,7 +702,7 @@ class Projectile(object):
 
     def print_trajectory(self, trajectory=None):
         text = self.format_trajectory(trajectory)
-        print text
+        print(text)
 
     def one_shot(self, l=None):
         if not l:
@@ -879,7 +879,7 @@ class Projectile(object):
 
     def print_configuration(self):
         text = self.format_configuration()
-        print text
+        print(text)
 
     def format_initial_conditions(self):
         text = "Initial Conditions:\n"
@@ -892,7 +892,7 @@ class Projectile(object):
 
     def print_initial_conditions(self):
         text = self.format_initial_conditions()
-        print text
+        print(text)
 
     def __str__(self):
         text = self.format_configuration()

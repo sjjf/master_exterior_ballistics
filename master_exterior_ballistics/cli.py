@@ -46,7 +46,7 @@ class CLIMixin(object):
         self.run_analysis()
         text = self.format_header()
         text += self.format_output()
-        print text
+        print(text)
 
     # We override this here because in the command line processing case we
     # /want/ to catch all the errors at this level
@@ -56,10 +56,10 @@ class CLIMixin(object):
             self.projectile = projectile.Projectile(args)
             return self.projectile
         except IOError as e:
-            print e
+            print(e)
         except projectile.MissingAttribute as e:
-            print e
-        print "Exiting"
+            print(e)
+        print("Exiting")
         sys.exit(1)
 
     # Override the argument parser to point it at the process_command_line
@@ -134,7 +134,7 @@ def main():
     if args.write_config:
         p = projectile.Projectile(args)
         p.to_config(args.write_config)
-        print "Config written to %s" % (args.write_config)
+        print("Config written to %s" % (args.write_config))
         sys.exit(0)
 
     args.func(args)
