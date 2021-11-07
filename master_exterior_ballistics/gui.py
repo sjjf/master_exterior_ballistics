@@ -5,10 +5,10 @@ import copy
 import math
 from os import path
 import time
-import Tkinter as tk
-import ttk
-import tkFileDialog as tkfd
-import tkMessageBox as tkmb
+import tkinter as tk
+import tkinter.ttk as ttk
+import tkinter.tkFileDialog as tkfd
+import tkinter.tkMessageBox as tkmb
 
 from master_exterior_ballistics import projectile
 from master_exterior_ballistics.projectile import cmp_projectiles
