@@ -490,9 +490,9 @@ class Projectile(object):
         kd = []
         try:
             for line in df.readlines():
-                line = line.strip()
+                line = line.decode().strip()
                 if line != "":
-                    (m, k) = line.split(',', 2)
+                    m, k = line.split(",", 2)
                     mach.append(float(m))
                     kd.append(float(k))
             self.mach = mach
