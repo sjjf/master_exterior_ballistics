@@ -105,6 +105,9 @@ def add_form_factors(parser, required=False):
 # namespace, rather than needing to check to see if they're there and then
 # check whether they're set to something meaningful
 def set_common_defaults(parser):
+    def default_usage(args):
+        parser.print_usage()
+
     parser.set_defaults(
         show_trajectory=False,
         mass=None,
@@ -120,6 +123,8 @@ def set_common_defaults(parser):
         save_to_config=None,
         density_function=None,
         timestep=None,
+        write_config=None,
+        func=default_usage,
     )
     parser.add_argument('-V', '--version',
         action='version',

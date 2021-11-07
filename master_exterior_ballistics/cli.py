@@ -104,8 +104,10 @@ class MakeConfigCLI(CLIMixin, commands.MakeConfig):
 def parse_args():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     arguments.set_common_defaults(parser)
-    subparsers = parser.add_subparsers(title="Modes of operation",
-        description="<mode> -h/--help for mode help")
+    subparsers = parser.add_subparsers(
+        title="Modes of operation",
+        description="<mode> -h/--help for mode help"
+        )
 
     # note that these are scoped to here, but the objects are still accessible
     # because they're bound into the parser object (via the
