@@ -4,3 +4,4 @@ master_exterior_ballistics/version.py
 *.swp
 build/
 dist/
+.tox
