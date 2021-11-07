@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import argparse
 import copy
@@ -6,9 +6,9 @@ import math
 from os import path
 import time
 import tkinter as tk
-import tkinter.ttk as ttk
-import tkinter.tkFileDialog as tkfd
-import tkinter.tkMessageBox as tkmb
+from tkinter import ttk as ttk
+from tkinter import filedialog as tkfd
+from tkinter import messagebox as tkmb
 
 from master_exterior_ballistics import projectile
 from master_exterior_ballistics.projectile import cmp_projectiles
